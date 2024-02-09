@@ -36,7 +36,7 @@ func setupSignatureMap[T EsewaPayload | EsewaVerifyPayload](p T) (*map[string]st
 	return &stringMap, nil
 }
 
-func (e *EsewaConfig) Validate() error {
+func (e *EsewaConfig) validate() error {
 	// total_amount,transaction_uuid,product_code mandatory fields
 	if e.Payload.TotalAmount == "" {
 		return ErrTotalAmount
@@ -67,6 +67,10 @@ func (e *EsewaConfig) getInputForSignature(signedFieldNames string) (string, err
 }
 
 func (e *EsewaConfig) GenerateSignature() (string, error) {
+	err := e.validate()
+	if err != nil {
+		return "", err
+	}
 	data, err := e.getInputForSignature(e.Payload.SignedFieldNames)
 	if err != nil {
 		return "", err
