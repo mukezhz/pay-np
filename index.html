@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Esewa Payment</title>
+  </head>
+  <body>
+    <body>
+      <form
+        action="https://rc-epay.esewa.com.np/api/epay/main/v2/form"
+        method="POST"
+      >
+        <div>
+          <label for="amount">Amount</label>
+          <input type="text" id="amount" name="amount" value="100" required />
+        </div>
+        <div>
+          <label for="tax_amount">Tax Amount</label>
+          <input
+            type="text"
+            id="tax_amount"
+            name="tax_amount"
+            value="13"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="total_amount">Total Amount</label>
+          <input
+            type="text"
+            id="total_amount"
+            name="total_amount"
+            value="133"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="transaction_uuid">Transaction UUID [Need to be different]</label>
+          <input
+            type="text"
+            id="transaction_uuid"
+            name="transaction_uuid"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="product_code">Product Code</label>
+          <input
+            type="text"
+            id="product_code"
+            name="product_code"
+            value="EPAYTEST"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="product_service_charge">Product Service Charge</label>
+          <input
+            type="text"
+            id="product_service_charge"
+            name="product_service_charge"
+            value="10"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="product_delivery_charge">Product Delivery Charge</label>
+          <input
+            type="text"
+            id="product_delivery_charge"
+            name="product_delivery_charge"
+            value="10"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="success_url">Success URL</label>
+          <input
+            type="text"
+            id="success_url"
+            name="success_url"
+            value="http://localhost:8000/success"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="failure_url">Failure URL</label>
+          <input
+            type="text"
+            id="failure_url"
+            name="failure_url"
+            value="http://localhost:8000/failure"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="signed_field_names">Signed Field Names</label>
+          <input
+            type="text"
+            id="signed_field_names"
+            name="signed_field_names"
+            value="total_amount,transaction_uuid,product_code"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="signature">Signature</label>
+          <input type="text" id="signature" name="signature" " required>
+        </div>
+
+        <div>
+          <input value="Submit" type="submit" />
+        </div>
+      </form>
+    </body>
+  </body>
+</html>
