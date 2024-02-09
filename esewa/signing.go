@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"log"
 )
 
@@ -18,11 +17,10 @@ func hmacSHA256(secretKey string, data string) string {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-func base64Decode(data string) string {
+func base64Decode(data string) ([]byte, error) {
 	decoded, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		log.Fatalf("Failed to decode base64: %v", err)
+		return []byte{}, err
 	}
-	fmt.Println(string(decoded))
-	return string(decoded)
+	return decoded, nil
 }

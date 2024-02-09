@@ -1,7 +1,6 @@
 package esewa
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -80,11 +79,14 @@ func (e *EsewaConfig) GenerateSignature() (string, error) {
 }
 
 func (e *EsewaConfig) VerifySignature(data string) error {
-	d, err := base64.StdEncoding.DecodeString(data)
+	d, err := base64Decode(data)
 	if err != nil {
 		return err
 	}
-	json.Unmarshal(d, &e.ReponsePayload)
+	err = json.Unmarshal(d, &e.ReponsePayload)
+	if err != nil {
+		return err
+	}
 	sm, err := setupSignatureMap[EsewaVerifyPayload](*e.ReponsePayload)
 	if err != nil {
 		return err
