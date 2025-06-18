@@ -39,3 +39,29 @@ type EsewaConfig struct {
 	signatureMap   map[string]string
 	ReponsePayload *EsewaVerifyPayload
 }
+
+type VerifyInput struct {
+	TxnRefId       string
+	ProductId      string
+	Amount         string
+	MerchantId     string
+	MerchantSecret string
+	Environment    string
+}
+
+type EsewaTransactionVerificationResponse struct {
+	ProductId   string `json:"productId"`
+	ProductName string `json:"productName"`
+	TotalAmount string `json:"totalAmount"`
+	Code        string `json:"code"`
+	Message     struct {
+		TechnicalSuccessMessage string `json:"technicalSuccessMessage"`
+		SuccessMessage          string `json:"successMessage"`
+	} `json:"message"`
+	TransactionDetails struct {
+		Date        string `json:"date"`
+		ReferenceId string `json:"referenceId"`
+		Status      string `json:"status"`
+	} `json:"transactionDetails"`
+	MerchantName string `json:"merchantName"`
+}
