@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/mukezhz/pay-np/errorz"
 )
 
 func New(secret string, payload *EsewaPayload) (*EsewaConfig, error) {
@@ -38,13 +40,13 @@ func setupSignatureMap[T EsewaPayload | EsewaVerifyPayload](p T) (*map[string]st
 func (e *EsewaConfig) validate() error {
 	// total_amount,transaction_uuid,product_code mandatory fields
 	if e.Payload.TotalAmount == "" {
-		return ErrTotalAmount
+		return errorz.ErrEsewaTotalAmount
 	}
 	if e.Payload.TransactionUUID == "" {
-		return ErrTransactionUUID
+		return errorz.ErrEsewaTransactionUUID
 	}
 	if e.Payload.ProductCode == "" {
-		return ErrProductCode
+		return errorz.ErrEsewaProductCode
 	}
 	return nil
 }
@@ -52,13 +54,13 @@ func (e *EsewaConfig) validate() error {
 func (e *EsewaConfig) getInputForSignature(signedFieldNames string) (string, error) {
 	splittedSignedFieldNames := strings.Split(signedFieldNames, ",")
 	if len(splittedSignedFieldNames) < 3 {
-		return "", ErrInvalidDataForSignature
+		return "", errorz.ErrEsewaInvalidDataForSignature
 	}
 
 	var signatureDate []string
 	for _, signedFieldName := range splittedSignedFieldNames {
 		if e.signatureMap[signedFieldName] == "" {
-			return "", ErrInvalidDataForSignature
+			return "", errorz.ErrEsewaInvalidDataForSignature
 		}
 		signatureDate = append(signatureDate, fmt.Sprintf("%s=%s", signedFieldName, e.signatureMap[signedFieldName]))
 	}
@@ -74,7 +76,6 @@ func (e *EsewaConfig) GenerateSignature() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(data)
 	return hmacSHA256(e.Secret, data), nil
 }
 
@@ -98,7 +99,7 @@ func (e *EsewaConfig) VerifySignature(data string) error {
 	}
 	signature := hmacSHA256(e.Secret, i)
 	if e.ReponsePayload.Signature != signature {
-		return ErrInvalidSignature
+		return errorz.ErrEsewaInvalidSignature
 	}
 
 	return nil
