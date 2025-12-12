@@ -6,10 +6,19 @@ import (
 	"strings"
 
 	"github.com/mukezhz/pay-np/errorz"
+	"github.com/mukezhz/pay-np/utils"
 )
 
-func New(secret string, payload *EsewaPayload) (*EsewaConfig, error) {
-	p := EsewaConfig{
+type EsewaClient struct {
+	Payload        *EsewaPayload
+	Signature      string
+	Secret         string
+	signatureMap   map[string]string
+	ReponsePayload *EsewaVerifyPayload
+}
+
+func New(secret string, payload *EsewaPayload) (*EsewaClient, error) {
+	p := EsewaClient{
 		Payload: payload,
 		Secret:  secret,
 	}
@@ -37,7 +46,7 @@ func setupSignatureMap[T EsewaPayload | EsewaVerifyPayload](p T) (*map[string]st
 	return &stringMap, nil
 }
 
-func (e *EsewaConfig) validate() error {
+func (e *EsewaClient) validate() error {
 	// total_amount,transaction_uuid,product_code mandatory fields
 	if e.Payload.TotalAmount == "" {
 		return errorz.ErrEsewaTotalAmount
@@ -51,7 +60,7 @@ func (e *EsewaConfig) validate() error {
 	return nil
 }
 
-func (e *EsewaConfig) getInputForSignature(signedFieldNames string) (string, error) {
+func (e *EsewaClient) getInputForSignature(signedFieldNames string) (string, error) {
 	splittedSignedFieldNames := strings.Split(signedFieldNames, ",")
 	if len(splittedSignedFieldNames) < 3 {
 		return "", errorz.ErrEsewaInvalidDataForSignature
@@ -67,7 +76,7 @@ func (e *EsewaConfig) getInputForSignature(signedFieldNames string) (string, err
 	return strings.Join(signatureDate, ","), nil
 }
 
-func (e *EsewaConfig) GenerateSignature() (string, error) {
+func (e *EsewaClient) GenerateSignature() (string, error) {
 	err := e.validate()
 	if err != nil {
 		return "", err
@@ -76,11 +85,11 @@ func (e *EsewaConfig) GenerateSignature() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return hmacSHA256(e.Secret, data), nil
+	return utils.HmacSHA256(e.Secret, data), nil
 }
 
-func (e *EsewaConfig) VerifySignature(data string) error {
-	d, err := base64Decode(data)
+func (e *EsewaClient) VerifySignature(data string) error {
+	d, err := utils.Base64Decode(data)
 	if err != nil {
 		return err
 	}
@@ -97,7 +106,7 @@ func (e *EsewaConfig) VerifySignature(data string) error {
 	if err != nil {
 		return err
 	}
-	signature := hmacSHA256(e.Secret, i)
+	signature := utils.HmacSHA256(e.Secret, i)
 	if e.ReponsePayload.Signature != signature {
 		return errorz.ErrEsewaInvalidSignature
 	}

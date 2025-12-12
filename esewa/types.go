@@ -31,11 +31,3 @@ type EsewaResponse struct {
 	Status      string `json:"status"`
 	RefID       string `json:"ref_id"`
 }
-
-type EsewaConfig struct {
-	Payload        *EsewaPayload
-	Signature      string
-	Secret         string
-	signatureMap   map[string]string
-	ReponsePayload *EsewaVerifyPayload
-}

@@ -14,19 +14,19 @@ import (
 	"golang.org/x/crypto/pkcs12"
 )
 
-type CIPSGateway struct {
+type CIPSClient struct {
 	apiURL string
 	client *http.Client
 }
 
-func NewCIPSGateway(apiURL string) *CIPSGateway {
-	return &CIPSGateway{
+func New(apiURL string) *CIPSClient {
+	return &CIPSClient{
 		apiURL: apiURL,
 		client: &http.Client{},
 	}
 }
 
-func (c *CIPSGateway) LoadPrivateKeyFromPFX(pfxPath, password string) (*rsa.PrivateKey, error) {
+func (c *CIPSClient) LoadPrivateKeyFromPFX(pfxPath, password string) (*rsa.PrivateKey, error) {
 	pfxData, err := os.ReadFile(pfxPath)
 	if err != nil {
 		return nil, errorz.ErrCIPSFailedToReadPFX.Wrap(err)
@@ -45,7 +45,7 @@ func (c *CIPSGateway) LoadPrivateKeyFromPFX(pfxPath, password string) (*rsa.Priv
 	return key, nil
 }
 
-func (c *CIPSGateway) GenerateDigitalSignatureWithRSA(params utils.GenerateDigitalSignatureWithRSAParams) (string, error) {
+func (c *CIPSClient) GenerateDigitalSignatureWithRSA(params utils.GenerateDigitalSignatureWithRSAParams) (string, error) {
 	signature, err := utils.GenerateDigitalSignatureWithRSA(params)
 	if err != nil {
 		return "", errorz.ErrCIPSSigningFailed.Wrap(err)
@@ -53,7 +53,7 @@ func (c *CIPSGateway) GenerateDigitalSignatureWithRSA(params utils.GenerateDigit
 	return signature, nil
 }
 
-func (c *CIPSGateway) ValidateTxn(req CIPSJSONRequest, authHeader string) (*ValidateTxnResponse, int, error) {
+func (c *CIPSClient) ValidateTxn(req CIPSJSONRequest, authHeader string) (*ValidateTxnResponse, int, error) {
 	endpoint := c.apiURL + "/connectipswebws/api/creditor/validatetxn"
 	respBytes, statusCode, err := c.postJSON(endpoint, req, authHeader)
 	if err != nil {
@@ -62,14 +62,13 @@ func (c *CIPSGateway) ValidateTxn(req CIPSJSONRequest, authHeader string) (*Vali
 
 	var resp ValidateTxnResponse
 	if err := json.Unmarshal([]byte(respBytes), &resp); err != nil {
-		return nil, statusCode, fmt.Errorf("failed to parse JSON response: %w", err)
+		return nil, statusCode, errorz.ErrCIPSInvalidValidateTxnResponse.Wrap(err)
 	}
 
-	fmt.Printf("ValidateTxn Response: %+v\n", resp)
 	return &resp, statusCode, nil
 }
 
-func (c *CIPSGateway) GetTxnDetail(req CIPSJSONRequest, authHeader string) (*GetTxnDetailResponse, int, error) {
+func (c *CIPSClient) GetTxnDetail(req CIPSJSONRequest, authHeader string) (*GetTxnDetailResponse, int, error) {
 	endpoint := c.apiURL + "/connectipswebws/api/creditor/gettxndetail"
 	respBytes, statusCode, err := c.postJSON(endpoint, req, authHeader)
 	if err != nil {
@@ -78,19 +77,19 @@ func (c *CIPSGateway) GetTxnDetail(req CIPSJSONRequest, authHeader string) (*Get
 
 	var resp GetTxnDetailResponse
 	if err := json.Unmarshal([]byte(respBytes), &resp); err != nil {
-		return nil, statusCode, fmt.Errorf("failed to parse JSON response: %w", err)
+		return nil, statusCode, errorz.ErrCIPSInvalidGetTxnDetailResponse.Wrap(err)
 	}
 
 	return &resp, statusCode, nil
 }
 
-func (c *CIPSGateway) postJSON(endpoint string, payload interface{}, authHeader string) (string, int, error) {
+func (c *CIPSClient) postJSON(endpoint string, payload interface{}, authHeader string) (string, int, error) {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to marshal JSON payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", 0, err
 	}
@@ -102,7 +101,7 @@ func (c *CIPSGateway) postJSON(endpoint string, payload interface{}, authHeader 
 	return c.doRequest(req)
 }
 
-func (c *CIPSGateway) doRequest(req *http.Request) (string, int, error) {
+func (c *CIPSClient) doRequest(req *http.Request) (string, int, error) {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", 0, err
