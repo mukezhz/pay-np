@@ -148,18 +148,30 @@ pre.code {
   color: #ffcb6b;
 }
 @media (prefers-color-scheme: light) {
-  .k {
+  :root:not([data-theme="dark"]) .k {
     color: #7c3aed;
   }
-  .t {
+  :root:not([data-theme="dark"]) .t {
     color: #2563eb;
   }
-  .s {
+  :root:not([data-theme="dark"]) .s {
     color: #15803d;
   }
-  .f {
+  :root:not([data-theme="dark"]) .f {
     color: #b45309;
   }
+}
+:root[data-theme="light"] .k {
+  color: #7c3aed;
+}
+:root[data-theme="light"] .t {
+  color: #2563eb;
+}
+:root[data-theme="light"] .s {
+  color: #15803d;
+}
+:root[data-theme="light"] .f {
+  color: #b45309;
 }
 .shot-side {
   border-left: 1px solid var(--line);
