@@ -24,6 +24,8 @@ type providerDoc struct {
 	Notes   []string
 	Links   []link
 	Snippet string
+	// Mobile is server-side verification code for the provider's mobile SDK, if it has its own flow.
+	Mobile string
 }
 
 var docs = map[paynp.ProviderName]providerDoc{
@@ -34,12 +36,30 @@ var docs = map[paynp.ProviderName]providerDoc{
 			{Name: "ESEWA_PRODUCT_CODE", Desc: "Merchant product code", Required: true, Builtin: "EPAYTEST"},
 			{Name: "ESEWA_SECRET_KEY", Desc: "HMAC-SHA256 signing secret", Required: true, Builtin: "eSewa's published sandbox secret"},
 			{Name: "ESEWA_STATUS_URL", Desc: "Override the status API URL"},
+			{Name: "ESEWA_MOBILE_CLIENT_ID", Desc: "SDK client ID (mobile verification)", Builtin: "eSewa's published SDK client"},
+			{Name: "ESEWA_MOBILE_CLIENT_SECRET", Desc: "SDK client secret (mobile verification)", Builtin: "eSewa's published SDK secret"},
 		},
 		Notes: []string{
 			"Whole rupees are sent as integers (\"110\"), matching eSewa's signing examples.",
 			"The failure redirect carries no signed data, so the TxnID is kept in the return URL path.",
 			"Status API maps COMPLETE → SUCCESS, PENDING/AMBIGUOUS → PENDING, NOT_FOUND → NOT_FOUND.",
+			"Mobile SDK payments use different credentials (client ID/secret) and esewa.NewMobile; the SDK test login is 9711111111, Nepal@123, MPIN 1122, token 123456.",
 		},
+		Mobile: `// The app pays with eSewa's Android/iOS/Flutter SDK using a productId you
+// generate per order, then sends your backend the refId the SDK returned.
+app, err := esewa.NewMobile(esewa.MobileConfig{
+    ClientID:     esewa.SandboxMobileClientID,
+    ClientSecret: esewa.SandboxMobileClientSecret,
+})
+
+tx, err := app.Verify(ctx, esewa.MobileVerifyRequest{
+    ProductID: order.ID,     // binds the payment to this order
+    RefID:     refIDFromApp, // optional; productId + amount also works
+    Amount:    order.Amount, // from your records
+})
+if err == nil && tx.Status == paynp.StatusSuccess {
+    fulfilOnce(order.ID, tx.ProviderRef)
+}`,
 		Links: []link{{"ePay v2 docs", "https://developer.esewa.com.np/pages/Epay-V2"}},
 		Snippet: `p, err := esewa.New(esewa.Config{
     ProductCode: esewa.SandboxProductCode,

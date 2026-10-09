@@ -223,6 +223,29 @@ var provider paynp.Provider = p</pre></div>
           </li>
         </ol>
 
+        {{ if $d.Mobile }}
+          <h2 id="mobile">Mobile apps (Android, iOS, Flutter)</h2>
+          <p>
+            {{ $p.Label }}'s mobile SDK pays inside the app, so there is no Initiate. Verify the result on your server
+            before fulfilling — never trust the app.
+          </p>
+          <!-- prettier-ignore -->
+          <div class="codebox"><div class="bar">mobile.go<button class="copy" type="button" data-copy>Copy</button></div><pre>{{$d.Mobile}}</pre></div>
+          <form class="verify" id="mobile-verify" action="/api/esewa/mobile-verify" method="post">
+            <div class="verify-fields">
+              <label><span>Product ID</span><input name="product_id" required placeholder="ord-42" /></label>
+              <label><span>Ref ID</span><input name="ref_id" placeholder="0004VZR (optional)" /></label>
+              <label
+                ><span>Amount (Rs)</span><input name="amount" required inputmode="decimal" placeholder="25"
+              /></label>
+            </div>
+            <button class="btn primary" type="submit">Verify on eSewa</button>
+          </form>
+          <!-- prettier-ignore -->
+          <pre class="verify-out" id="mobile-verify-out" hidden></pre>
+        {{ end }}
+
+
         <h2 id="notes">Notes</h2>
         <ul class="notes">
           {{ range $d.Notes }}<li>{{ . }}</li>{{ end }}

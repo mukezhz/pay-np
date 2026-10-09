@@ -70,6 +70,7 @@ type shop struct {
 	baseURL   string
 	env       string
 	providers map[paynp.ProviderName]paynp.Provider
+	esewaApp  *esewa.MobileClient
 
 	mu       sync.Mutex
 	attempts map[string]*attempt
@@ -101,6 +102,7 @@ func main() {
 	mux.HandleFunc("/return/{provider}", s.handleReturn) // ConnectIPS: URL registered with NCHL, TXNID in query
 	mux.HandleFunc("POST /webhook/hamropay", s.hamropayWebhook)
 	mux.HandleFunc("GET /providers/{name}", s.providerDocs)
+	mux.HandleFunc("POST /api/esewa/mobile-verify", s.esewaMobileVerify)
 	mux.HandleFunc("GET /attempts/{txn}", s.show)
 	mux.HandleFunc("POST /attempts/{txn}/lookup", s.recheck)
 
@@ -130,6 +132,17 @@ func (s *shop) configure(env paynp.Environment) error {
 			StatusURL: os.Getenv("ESEWA_STATUS_URL")})); err != nil {
 			return err
 		}
+	}
+	appID, appSecret := os.Getenv("ESEWA_MOBILE_CLIENT_ID"), os.Getenv("ESEWA_MOBILE_CLIENT_SECRET")
+	if appID == "" && env == paynp.Sandbox {
+		appID, appSecret = esewa.SandboxMobileClientID, esewa.SandboxMobileClientSecret
+	}
+	if appID != "" {
+		m, err := esewa.NewMobile(esewa.MobileConfig{ClientID: appID, ClientSecret: appSecret, Environment: env})
+		if err != nil {
+			return err
+		}
+		s.esewaApp = m
 	}
 	key := os.Getenv("KHALTI_SECRET_KEY")
 	if key == "" && env == paynp.Sandbox {
@@ -314,6 +327,32 @@ func (s *shop) hamropayWebhook(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	s.lookup(r.Context(), a)
 	w.WriteHeader(http.StatusOK)
+}
+
+// esewaMobileVerify checks a payment made with eSewa's Android/iOS/Flutter SDK.
+func (s *shop) esewaMobileVerify(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	reply := func(code int, v map[string]any) {
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(v)
+	}
+	if s.esewaApp == nil {
+		reply(http.StatusNotFound, map[string]any{"error": "eSewa mobile credentials not configured"})
+		return
+	}
+	amount, err := paynp.ParseRupees(r.FormValue("amount"))
+	if err != nil || amount <= 0 {
+		reply(http.StatusBadRequest, map[string]any{"error": "invalid amount"})
+		return
+	}
+	tx, err := s.esewaApp.Verify(r.Context(), esewa.MobileVerifyRequest{
+		ProductID: strings.TrimSpace(r.FormValue("product_id")), RefID: strings.TrimSpace(r.FormValue("ref_id")), Amount: amount,
+	})
+	if err != nil {
+		reply(http.StatusOK, map[string]any{"error": err.Error()})
+		return
+	}
+	reply(http.StatusOK, map[string]any{"status": tx.Status, "final": tx.Status.Final(), "ref_id": tx.ProviderRef, "amount": tx.Amount.Rupees(), "raw": json.RawMessage(tx.Raw)})
 }
 
 func (s *shop) recheck(w http.ResponseWriter, r *http.Request) {
