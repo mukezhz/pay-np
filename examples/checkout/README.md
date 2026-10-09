@@ -8,6 +8,13 @@ go run ./examples/checkout
 # open http://localhost:8080
 ```
 
+Or in Docker (from the repo root; `make help` lists every target):
+
+```bash
+make docker-run                                   # build and run on :8080, reads .env if present
+make docker-push IMAGE=ghcr.io/you/pay-np-checkout TAG=v0.1.0   # multi-arch amd64+arm64, after docker login
+```
+
 `/` is an overview of the SDK and provider readiness; `/checkout` is the test shop
 (keys `1`–`5` pick a provider, `⌘↵` pays); `/attempts/{txn}` shows status, flow and raw
 provider responses (`R` re-runs Lookup); `/providers/{name}` is a per-provider guide —

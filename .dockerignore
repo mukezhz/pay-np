@@ -1,0 +1,8 @@
+.git
+.github
+.claude
+bin
+*.env
+.env*
+Dockerfile
+Makefile
