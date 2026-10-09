@@ -6,8 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -97,5 +99,22 @@ func TestLookupUnauthorizedIsAPIError(t *testing.T) {
 	var apiErr *paynp.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != 401 {
 		t.Fatalf("want APIError 401, got %v", err)
+	}
+}
+
+func TestParsePEM(t *testing.T) {
+	key, _ := rsa.GenerateKey(rand.Reader, 1024)
+	pkcs8, _ := x509.MarshalPKCS8PrivateKey(key)
+	for name, data := range map[string][]byte{
+		"pkcs1 pem": pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}),
+		"pkcs8 pem": pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8}),
+		"pkcs8 der": pkcs8,
+	} {
+		if got, err := connectips.ParsePEM(data); err != nil || !got.Equal(key) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if _, err := connectips.ParsePEM([]byte("junk")); !errors.Is(err, paynp.ErrInvalidConfig) {
+		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }

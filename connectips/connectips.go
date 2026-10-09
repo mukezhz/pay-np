@@ -7,8 +7,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"net/http"
@@ -70,6 +72,25 @@ func ParsePFX(data []byte, password string) (*rsa.PrivateKey, error) {
 	rsaKey, ok := key.(*rsa.PrivateKey)
 	if !ok {
 		return nil, fmt.Errorf("%w: connectips pfx key is not RSA", paynp.ErrInvalidConfig)
+	}
+	return rsaKey, nil
+}
+
+// ParsePEM accepts a PEM or raw DER key in PKCS#8 or PKCS#1 form.
+func ParsePEM(data []byte) (*rsa.PrivateKey, error) {
+	if block, _ := pem.Decode(data); block != nil {
+		data = block.Bytes
+	}
+	if key, err := x509.ParsePKCS1PrivateKey(data); err == nil {
+		return key, nil
+	}
+	key, err := x509.ParsePKCS8PrivateKey(data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: connectips key is not PKCS#1 or PKCS#8: %v", paynp.ErrInvalidConfig, err)
+	}
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("%w: connectips key is not RSA", paynp.ErrInvalidConfig)
 	}
 	return rsaKey, nil
 }
