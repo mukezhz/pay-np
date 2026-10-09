@@ -1,35 +1,48 @@
-{{define "layout"}}<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} · pay-np</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16L0 16z' fill='%23dc143c'/%3E%3Cpath d='M16 0v16H0z' fill='%232741a8'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/{{.Style}}.css">
-<script src="/static/js/copy.js" defer></script>
-{{with .Script}}<script src="/static/js/{{.}}.js" defer></script>{{end}}
-</head>
-<body>
-<header class="nav">
-  <div class="nav-in">
-    <a class="logo" href="/"><span class="logo-mark" aria-hidden="true"></span>pay-np</a>
-    <nav class="nav-links" aria-label="Main">
-      <a href="/" {{if eq .Page "home"}}aria-current="page"{{end}}>Overview</a>
-      <a href="/checkout" {{if eq .Page "checkout"}}aria-current="page"{{end}}>Checkout</a>
-      <a href="/providers/esewa" {{if eq .Page "providers"}}aria-current="page"{{end}}>Providers</a>
-    </nav>
-    <span class="grow"></span>
-    <span class="tag env {{.Env}} nav-hide">{{.Env}}</span>
-    <a class="btn ghost nav-hide" href="https://github.com/mukezhz/pay-np" rel="noopener">GitHub</a>
-    <a class="btn primary nav-hide" href="/checkout">New payment</a>
-  </div>
-</header>
-{{template "content" .}}
-<footer><div class="wrap"><span>pay-np · MIT</span><span class="grow"></span><a href="https://github.com/mukezhz/pay-np" rel="noopener">GitHub</a><span>Unofficial SDK — test in sandbox first.</span></div></footer>
-</body>
-</html>
-{{end}}
+{{ define "layout" }}
+  <!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>{{ .Title }} · pay-np</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
+      <link
+        rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16L0 16z' fill='%23dc143c'/%3E%3Cpath d='M16 0v16H0z' fill='%232741a8'/%3E%3C/svg%3E"
+      />
+      <link rel="stylesheet" href="/static/css/base.css" />
+      <link rel="stylesheet" href="/static/css/{{ .Style }}.css" />
+      <script src="/static/js/copy.js" defer></script>
+      {{ with .Script }}<script src="/static/js/{{ . }}.js" defer></script>{{ end }}
+    </head>
+    <body>
+      <header class="nav">
+        <div class="nav-in">
+          <a class="logo" href="/"><span class="logo-mark" aria-hidden="true"></span>pay-np</a>
+          <nav class="nav-links" aria-label="Main">
+            <a href="/" {{ if eq .Page "home" }}aria-current="page"{{ end }}>Overview</a>
+            <a href="/checkout" {{ if eq .Page "checkout" }}aria-current="page"{{ end }}>Checkout</a>
+            <a href="/providers/esewa" {{ if eq .Page "providers" }}aria-current="page"{{ end }}>Providers</a>
+          </nav>
+          <span class="grow"></span>
+          <span class="tag env {{ .Env }} nav-hide">{{ .Env }}</span>
+          <a class="btn ghost nav-hide" href="https://github.com/mukezhz/pay-np" rel="noopener">GitHub</a>
+          <a class="btn primary nav-hide" href="/checkout">New payment</a>
+        </div>
+      </header>
+      {{ template "content" . }}
+      <footer>
+        <div class="wrap">
+          <span>pay-np · MIT</span><span class="grow"></span
+          ><a href="https://github.com/mukezhz/pay-np" rel="noopener">GitHub</a
+          ><span>Unofficial SDK — test in sandbox first.</span>
+        </div>
+      </footer>
+    </body>
+  </html>
+{{ end }}

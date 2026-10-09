@@ -1,21 +1,28 @@
-{{define "content"}}
+{{ define "content" }}
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <a class="eyebrow" href="/checkout"><b>{{ .Enabled }}/{{ .Total }}</b> providers ready in {{ .Env }} →</a>
+        <h1>Every Nepali payment gateway. One Go interface.</h1>
+        <p class="lede">
+          eSewa, Khalti, ConnectIPS, Fonepay, IME Pay and Hamro Pay behind <code>paynp.Provider</code>. Integer paisa,
+          verified callbacks, and a server-side Lookup you can trust.
+        </p>
+        <div class="ctas">
+          <a class="btn primary lg" href="/checkout">Try the test checkout <kbd>C</kbd></a>
+          <a class="btn lg" href="https://github.com/mukezhz/pay-np" rel="noopener">View on GitHub</a>
+        </div>
+        <div class="install">
+          <code id="install">go get github.com/mukezhz/pay-np</code
+          ><button class="btn" type="button" data-copy="install">Copy</button>
+        </div>
 
-<main>
-  <section class="hero">
-    <div class="wrap">
-      <a class="eyebrow" href="/checkout"><b>{{.Enabled}}/{{.Total}}</b> providers ready in {{.Env}} →</a>
-      <h1>Every Nepali payment gateway. One Go interface.</h1>
-      <p class="lede">eSewa, Khalti, ConnectIPS, Fonepay, IME Pay and Hamro Pay behind <code>paynp.Provider</code>. Integer paisa, verified callbacks, and a server-side Lookup you can trust.</p>
-      <div class="ctas">
-        <a class="btn primary lg" href="/checkout">Try the test checkout <kbd>C</kbd></a>
-        <a class="btn lg" href="https://github.com/mukezhz/pay-np" rel="noopener">View on GitHub</a>
-      </div>
-      <div class="install"><code id="install">go get github.com/mukezhz/pay-np</code><button class="btn" type="button" data-copy="install">Copy</button></div>
-
-      <div class="shot" aria-label="Example code">
-        <div class="shot-bar"><i></i><i></i><i></i><span>checkout.go</span></div>
-        <div class="shot-grid">
-<pre class="code"><span class="k">var</span> p paynp.<span class="t">Provider</span> = khalti.<span class="f">New</span>(cfg)
+        <div class="shot" aria-label="Example code">
+          <div class="shot-bar"><i></i><i></i><i></i><span>checkout.go</span></div>
+          <div class="shot-grid">
+            <pre
+              class="code"
+            ><span class="k">var</span> p paynp.<span class="t">Provider</span> = khalti.<span class="f">New</span>(cfg)
 
 <span class="c">// 1. Start: redirect or auto-submit form</span>
 co, _ := p.<span class="f">Initiate</span>(ctx, paynp.<span class="t">InitiateRequest</span>{
@@ -33,72 +40,113 @@ tx, err := p.<span class="f">Lookup</span>(ctx, paynp.<span class="t">LookupRequ
 <span class="k">if</span> err == <span class="k">nil</span> && tx.Status == paynp.StatusSuccess {
     <span class="f">fulfil</span>(order)
 }</pre>
-          <div class="shot-side">
-            <div class="small faint" style="margin-bottom:14px">Payment lifecycle</div>
-            <ol class="flow">
-              <li><b>1</b><div><strong>Initiate</strong><span>Sign the form or create the provider session.</span></div></li>
-              <li><b>2</b><div><strong>Checkout</strong><span>User pays on eSewa, Khalti, ConnectIPS…</span></div></li>
-              <li><b>3</b><div><strong>Callback</strong><span>Signature checked when signed. A hint, never proof.</span></div></li>
-              <li class="truth"><b>4</b><div><strong>Lookup</strong><span>Server-to-server status. Amount must match.</span></div></li>
-            </ol>
+            <div class="shot-side">
+              <div class="small faint" style="margin-bottom:14px">Payment lifecycle</div>
+              <ol class="flow">
+                <li>
+                  <b>1</b>
+                  <div><strong>Initiate</strong><span>Sign the form or create the provider session.</span></div>
+                </li>
+                <li>
+                  <b>2</b>
+                  <div><strong>Checkout</strong><span>User pays on eSewa, Khalti, ConnectIPS…</span></div>
+                </li>
+                <li>
+                  <b>3</b>
+                  <div><strong>Callback</strong><span>Signature checked when signed. A hint, never proof.</span></div>
+                </li>
+                <li class="truth">
+                  <b>4</b>
+                  <div><strong>Lookup</strong><span>Server-to-server status. Amount must match.</span></div>
+                </li>
+              </ol>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="block">
-    <div class="wrap">
-      <div class="kicker">Built for money</div>
-      <h2>Boring where it matters.</h2>
-      <p>Every adapter follows the same rules, so swapping providers never changes how you verify a payment.</p>
-      <div class="features">
-        <div class="feature">
-          <div class="ico" aria-hidden="true">₨</div>
-          <h3>Integer paisa</h3>
-          <p><code>paynp.Paisa</code> everywhere. Rupee strings like <code>1,000.0</code> or <code>10.0000</code> are parsed at the edge; sub-paisa is rejected.</p>
-        </div>
-        <div class="feature">
-          <div class="ico" aria-hidden="true">✓</div>
-          <h3>Lookup is the truth</h3>
-          <p>Unsigned callbacks never report SUCCESS. A paid transaction with the wrong amount returns <code>ErrAmountMismatch</code> and no transaction.</p>
-        </div>
-        <div class="feature">
-          <div class="ico" aria-hidden="true">⌘</div>
-          <h3>One contract</h3>
-          <p><code>Initiate</code>, <code>ParseCallback</code>, <code>Lookup</code>. Context, timeouts and typed <code>*APIError</code> on every call.</p>
+    <section class="block">
+      <div class="wrap">
+        <div class="kicker">Built for money</div>
+        <h2>Boring where it matters.</h2>
+        <p>Every adapter follows the same rules, so swapping providers never changes how you verify a payment.</p>
+        <div class="features">
+          <div class="feature">
+            <div class="ico" aria-hidden="true">₨</div>
+            <h3>Integer paisa</h3>
+            <p>
+              <code>paynp.Paisa</code> everywhere. Rupee strings like <code>1,000.0</code> or <code>10.0000</code> are
+              parsed at the edge; sub-paisa is rejected.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico" aria-hidden="true">✓</div>
+            <h3>Lookup is the truth</h3>
+            <p>
+              Unsigned callbacks never report SUCCESS. A paid transaction with the wrong amount returns
+              <code>ErrAmountMismatch</code> and no transaction.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico" aria-hidden="true">⌘</div>
+            <h3>One contract</h3>
+            <p>
+              <code>Initiate</code>, <code>ParseCallback</code>, <code>Lookup</code>. Context, timeouts and typed
+              <code>*APIError</code> on every call.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="block">
-    <div class="wrap">
-      <div class="kicker">Providers</div>
-      <h2>Six gateways, one shape.</h2>
-      <p>Click a provider for its setup guide and env status. eSewa and Khalti run against their public sandboxes out of the box. Hamro Pay has free self-service UAT keys; the rest need merchant credentials.</p>
-      <div class="panel providers">
-        <div class="prow head"><span>Provider</span><span class="hide-sm">Checkout</span><span class="hide-sm">Callback</span><span class="hide-sm">Status check</span><span>Here</span></div>
-        {{range .Providers}}
-        <a class="prow" href="/providers/{{.Name}}">
-          <span class="who"><span class="mono-badge sm" style="--c:{{css .Color}}" aria-hidden="true">{{.Mono}}</span><span>{{.Label}}</span></span>
-          <span class="hide-sm muted">{{.Checkout}}</span>
-          <span class="hide-sm muted">{{if .Signed}}Signed{{else}}Unsigned{{end}}</span>
-          <span class="hide-sm muted">{{.Lookup}}</span>
-          <span>{{if .Enabled}}<span class="ready">Ready</span>{{else}}<span class="needs">Needs keys →</span>{{end}}</span>
-        </a>
-        {{end}}
+    <section class="block">
+      <div class="wrap">
+        <div class="kicker">Providers</div>
+        <h2>Six gateways, one shape.</h2>
+        <p>
+          Click a provider for its setup guide and env status. eSewa and Khalti run against their public sandboxes out
+          of the box. Hamro Pay has free self-service UAT keys; the rest need merchant credentials.
+        </p>
+        <div class="panel providers">
+          <div class="prow head">
+            <span>Provider</span><span class="hide-sm">Checkout</span><span class="hide-sm">Callback</span
+            ><span class="hide-sm">Status check</span><span>Here</span>
+          </div>
+          {{ range .Providers }}
+            <a class="prow" href="/providers/{{ .Name }}">
+              <span class="who"
+                ><span class="mono-badge sm" style="--c:{{ css .Color }}" aria-hidden="true">{{ .Mono }}</span
+                ><span>{{ .Label }}</span></span
+              >
+              <span class="hide-sm muted">{{ .Checkout }}</span>
+              <span class="hide-sm muted">{{ if .Signed }}Signed{{ else }}Unsigned{{ end }}</span>
+              <span class="hide-sm muted">{{ .Lookup }}</span>
+              <span
+                >{{ if .Enabled }}
+                  <span class="ready">Ready</span>
+                {{ else }}
+                  <span class="needs">Needs keys →</span>
+                {{ end }}</span
+              >
+            </a>
+          {{ end }}
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="wrap">
-    <div class="cta">
-      <h2>Make a test payment.</h2>
-      <p class="muted" style="margin:0 0 24px">{{if .Attempts}}{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}} so far this session.{{else}}Pay Rs 10 in the Khalti sandbox and watch the lookup land.{{end}}</p>
-      <a class="btn primary lg" href="/checkout">Open checkout</a>
-    </div>
-  </section>
-</main>
-
-{{end}}
+    <section class="wrap">
+      <div class="cta">
+        <h2>Make a test payment.</h2>
+        <p class="muted" style="margin:0 0 24px">
+          {{ if .Attempts }}
+            {{ .Attempts }} attempt{{ if ne .Attempts 1 }}s{{ end }} so far this session.
+          {{ else }}
+            Pay Rs 10 in the Khalti sandbox and watch the lookup land.
+          {{ end }}
+        </p>
+        <a class="btn primary lg" href="/checkout">Open checkout</a>
+      </div>
+    </section>
+  </main>
+{{ end }}

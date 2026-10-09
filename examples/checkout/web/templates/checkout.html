@@ -1,79 +1,150 @@
-{{define "content"}}
+{{ define "content" }}
+  <main class="wrap page">
+    <div class="crumbs"><a href="/">pay-np</a><span class="faint">/</span><b>Checkout</b></div>
+    <div class="title">
+      <h1>New payment</h1>
+      <span class="tag env {{ .Env }}">{{ .Env }}</span>
+      <p>Pay on the provider's sandbox and come back. Only the server-side Lookup decides the outcome.</p>
+    </div>
 
-<main class="wrap page">
-  <div class="crumbs"><a href="/">pay-np</a><span class="faint">/</span><b>Checkout</b></div>
-  <div class="title">
-    <h1>New payment</h1>
-    <span class="tag env {{.Env}}">{{.Env}}</span>
-    <p>Pay on the provider's sandbox and come back. Only the server-side Lookup decides the outcome.</p>
-  </div>
-
-  <form method="post" action="/pay" class="compose" id="checkout">
-    <section class="panel order" aria-labelledby="order-h">
-      <div class="panel-h" id="order-h">Order</div>
-      <label class="field">
-        <span>Amount</span>
-        <div class="amount"><em>Rs</em><input id="amount" name="amount" value="100" inputmode="decimal" autocomplete="off" required pattern="[0-9]+(\.[0-9]{1,2})?" aria-label="Amount in rupees"></div>
-        <div class="chips" role="group" aria-label="Quick amounts">
-          <button class="chip" type="button" data-amount="10">10</button>
-          <button class="chip" type="button" data-amount="100">100</button>
-          <button class="chip" type="button" data-amount="1000">1,000</button>
-          <button class="chip" type="button" data-amount="10.50">10.50</button>
+    <form method="post" action="/pay" class="compose" id="checkout">
+      <section class="panel order" aria-labelledby="order-h">
+        <div class="panel-h" id="order-h">Order</div>
+        <label class="field">
+          <span>Amount</span>
+          <div class="amount">
+            <em>Rs</em
+            ><input
+              id="amount"
+              name="amount"
+              value="100"
+              inputmode="decimal"
+              autocomplete="off"
+              required
+              pattern="[0-9]+(\.[0-9]{1,2})?"
+              aria-label="Amount in rupees"
+            />
+          </div>
+          <div class="chips" role="group" aria-label="Quick amounts">
+            <button class="chip" type="button" data-amount="10">10</button>
+            <button class="chip" type="button" data-amount="100">100</button>
+            <button class="chip" type="button" data-amount="1000">1,000</button>
+            <button class="chip" type="button" data-amount="10.50">10.50</button>
+          </div>
+        </label>
+        <label class="field"
+          ><span>Description</span><input name="description" value="pay-np test order" maxlength="50"
+        /></label>
+        <div class="two">
+          <label class="field"
+            ><span>Customer</span><input name="name" placeholder="Name (optional)" autocomplete="name"
+          /></label>
+          <label class="field"
+            ><span>Phone</span><input name="phone" placeholder="98XXXXXXXX" inputmode="tel" autocomplete="tel"
+          /></label>
         </div>
-      </label>
-      <label class="field"><span>Description</span><input name="description" value="pay-np test order" maxlength="50"></label>
-      <div class="two">
-        <label class="field"><span>Customer</span><input name="name" placeholder="Name (optional)" autocomplete="name"></label>
-        <label class="field"><span>Phone</span><input name="phone" placeholder="98XXXXXXXX" inputmode="tel" autocomplete="tel"></label>
+        <dl class="summary">
+          <dt>Method</dt>
+          <dd id="sum-method">—</dd>
+          <dt>Total</dt>
+          <dd id="sum-total">—</dd>
+        </dl>
+        <div class="paybar">
+          <button class="btn primary" type="submit" id="pay-btn" {{ if eq .Enabled 0 }}disabled{{ end }}>
+            Pay <kbd>⌘</kbd><kbd>↵</kbd>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="pay-h">
+        <div class="panel-h">
+          <span id="pay-h">Payment method</span><span class="grow"></span
+          ><span class="small faint"
+            >{{ .Enabled }}/{{ .Total }} ready<span class="kbd-hint">
+              · press <kbd>1</kbd>–<kbd>{{ .Total }}</kbd></span
+            ></span
+          >
+        </div>
+        <ul class="methods" role="radiogroup" aria-labelledby="pay-h">
+          {{ range $i, $p := .Providers }}
+            <li>
+              <label class="method {{ if not $p.Enabled }}off{{ end }}">
+                <input
+                  type="radio"
+                  name="provider"
+                  value="{{ $p.Name }}"
+                  data-label="{{ $p.Label }}"
+                  data-key="{{ $i }}"
+                  {{ if not $p.Enabled }}
+                    disabled
+                  {{ else if eq $p.Name $.Selected }}
+                    checked
+                  {{ end }}
+                />
+                <span
+                  class="mono-badge {{ if not $p.Enabled }}off{{ end }}"
+                  style="--c:{{ css $p.Color }}"
+                  aria-hidden="true"
+                  >{{ $p.Mono }}</span
+                >
+                <span>
+                  <span class="method-name"
+                    >{{ $p.Label }}{{ if not $p.Enabled }}&#32;<span class="soon">Needs keys</span>{{ end }}</span
+                  >
+                  <span class="method-meta"
+                    >{{ $p.Checkout }} · {{ if $p.Signed }}signed{{ else }}unsigned{{ end }} callback ·
+                    {{ $p.Lookup }}</span
+                  >
+                </span>
+                <kbd aria-hidden="true">{{ inc $i }}</kbd>
+                {{ if $p.Enabled }}
+                  <span class="creds"
+                    >Sandbox login — {{ $p.Sandbox }} · <a href="/providers/{{ $p.Name }}">Integration guide</a></span
+                  >
+                {{ else }}
+                  <span class="help">Missing keys — <a href="/providers/{{ $p.Name }}">see setup guide →</a></span>
+                {{ end }}
+              </label>
+            </li>
+          {{ end }}
+        </ul>
+      </section>
+    </form>
+
+    <section class="panel attempts" aria-labelledby="att-h">
+      <div class="panel-h">
+        <span id="att-h">Attempts</span><span class="tag">{{ len .Attempts }}</span><span class="grow"></span
+        ><span class="small faint">In memory · cleared on restart</span>
       </div>
-      <dl class="summary">
-        <dt>Method</dt><dd id="sum-method">—</dd>
-        <dt>Total</dt><dd id="sum-total">—</dd>
-      </dl>
-      <div class="paybar">
-        <button class="btn primary" type="submit" id="pay-btn" {{if eq .Enabled 0}}disabled{{end}}>Pay <kbd>⌘</kbd><kbd>↵</kbd></button>
-      </div>
+      {{ if .Attempts }}
+        <div class="row head">
+          <span>Transaction</span><span class="hide-sm">Provider</span><span class="hide-sm">Status</span
+          ><span class="num">Amount</span><span class="hide-sm num">Created</span>
+        </div>
+        {{ range .Attempts }}
+          {{ $p := info .Provider }}
+          <a class="row" href="/attempts/{{ .ID }}">
+            <span class="who"
+              ><span class="st {{ .Status }}" title="{{ .Status }}"><i></i></span
+              ><span class="mono">{{ .ID }}</span></span
+            >
+            <span class="who hide-sm"
+              ><span class="mono-badge sm" style="--c:{{ css $p.Color }}" aria-hidden="true">{{ $p.Mono }}</span
+              ><span>{{ $p.Label }}</span></span
+            >
+            <span class="hide-sm"
+              ><span class="st {{ .Status }}"><i></i>{{ title .Status }}</span></span
+            >
+            <span class="num">Rs {{ rupees .Amount }}</span>
+            <span class="hide-sm num faint">{{ ago .CreatedAt }}</span>
+          </a>
+        {{ end }}
+      {{ else }}
+        <div class="empty">
+          <b>No attempts yet</b>Pick a method, pay in the sandbox, and each attempt shows up here with its lookup
+          history.
+        </div>
+      {{ end }}
     </section>
-
-    <section class="panel" aria-labelledby="pay-h">
-      <div class="panel-h"><span id="pay-h">Payment method</span><span class="grow"></span><span class="small faint">{{.Enabled}}/{{.Total}} ready<span class="kbd-hint"> · press <kbd>1</kbd>–<kbd>{{.Total}}</kbd></span></span></div>
-      <ul class="methods" role="radiogroup" aria-labelledby="pay-h">
-        {{range $i, $p := .Providers}}
-        <li>
-          <label class="method {{if not $p.Enabled}}off{{end}}">
-            <input type="radio" name="provider" value="{{$p.Name}}" data-label="{{$p.Label}}" data-key="{{$i}}" {{if not $p.Enabled}}disabled{{else if eq $p.Name $.Selected}}checked{{end}}>
-            <span class="mono-badge {{if not $p.Enabled}}off{{end}}" style="--c:{{css $p.Color}}" aria-hidden="true">{{$p.Mono}}</span>
-            <span>
-              <span class="method-name">{{$p.Label}}{{if not $p.Enabled}}&#32;<span class="soon">Needs keys</span>{{end}}</span>
-              <span class="method-meta">{{$p.Checkout}} · {{if $p.Signed}}signed{{else}}unsigned{{end}} callback · {{$p.Lookup}}</span>
-            </span>
-            <kbd aria-hidden="true">{{inc $i}}</kbd>
-            {{if $p.Enabled}}<span class="creds">Sandbox login — {{$p.Sandbox}} · <a href="/providers/{{$p.Name}}">Integration guide</a></span>
-            {{else}}<span class="help">Missing keys — <a href="/providers/{{$p.Name}}">see setup guide →</a></span>{{end}}
-          </label>
-        </li>
-        {{end}}
-      </ul>
-    </section>
-  </form>
-
-  <section class="panel attempts" aria-labelledby="att-h">
-    <div class="panel-h"><span id="att-h">Attempts</span><span class="tag">{{len .Attempts}}</span><span class="grow"></span><span class="small faint">In memory · cleared on restart</span></div>
-    {{if .Attempts}}
-    <div class="row head"><span>Transaction</span><span class="hide-sm">Provider</span><span class="hide-sm">Status</span><span class="num">Amount</span><span class="hide-sm num">Created</span></div>
-    {{range .Attempts}}{{$p := info .Provider}}
-    <a class="row" href="/attempts/{{.ID}}">
-      <span class="who"><span class="st {{.Status}}" title="{{.Status}}"><i></i></span><span class="mono">{{.ID}}</span></span>
-      <span class="who hide-sm"><span class="mono-badge sm" style="--c:{{css $p.Color}}" aria-hidden="true">{{$p.Mono}}</span><span>{{$p.Label}}</span></span>
-      <span class="hide-sm"><span class="st {{.Status}}"><i></i>{{title .Status}}</span></span>
-      <span class="num">Rs {{rupees .Amount}}</span>
-      <span class="hide-sm num faint">{{ago .CreatedAt}}</span>
-    </a>
-    {{end}}
-    {{else}}
-    <div class="empty"><b>No attempts yet</b>Pick a method, pay in the sandbox, and each attempt shows up here with its lookup history.</div>
-    {{end}}
-  </section>
-</main>
-
-{{end}}
+  </main>
+{{ end }}
