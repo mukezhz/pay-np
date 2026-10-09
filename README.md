@@ -95,6 +95,12 @@ tab after paying, and none of these providers sends webhooks.
 
 - **eSewa** — whole rupees are sent as integers (`"110"`), matching eSewa's examples. The failure
   redirect has no signed `data`; put your TxnID in `FailureURL`.
+- **eSewa mobile SDK** (Android/iOS/Flutter) — the app pays in-app and sends your backend the
+  refId. Verify it with `esewa.NewMobile(...).Verify(ctx, MobileVerifyRequest{ProductID, RefID,
+  Amount})`, using the SDK client ID/secret (sandbox: `esewa.SandboxMobileClientID/Secret`).
+  Use a unique productId per order: Verify only reports SUCCESS for a COMPLETE payment of that
+  product and amount, so another order's refId cannot be replayed. Khalti's mobile SDKs reuse
+  the server-side `pidx`, so plain `Lookup` covers them.
 - **Khalti** — one return URL (`SuccessURL`) for every outcome. Persist `Checkout.ProviderRef`
   (`pidx`); `Lookup` needs it. Minimum amount is set by Khalti.
 - **ConnectIPS** — success/failure URLs are registered with NCHL, so `SuccessURL`/`FailureURL`
