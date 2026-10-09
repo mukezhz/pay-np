@@ -1,9 +1,4 @@
-// Command checkout is a local test shop for every pay-np provider.
-//
-//	go run ./examples/checkout    # then open http://localhost:8080
-//
-// eSewa works out of the box with its public sandbox merchant. Other providers
-// appear once their env vars are set (see examples/checkout/README.md).
+// Command checkout is a local test shop for pay-np providers.
 package main
 
 import (
@@ -38,7 +33,6 @@ import (
 //go:embed web
 var webFS embed.FS
 
-// pages holds one template set per page: layout.html plus the page's "content".
 var pages = func() map[string]*template.Template {
 	m := map[string]*template.Template{}
 	for _, name := range []string{"landing", "checkout", "attempt", "provider"} {
@@ -57,6 +51,8 @@ type attempt struct {
 	CreatedAt time.Time
 	Callback  *paynp.Callback
 	Events    []event
+	AppReturn string
+	checkout  *paynp.Checkout
 }
 
 type event struct {
@@ -67,10 +63,11 @@ type event struct {
 }
 
 type shop struct {
-	baseURL   string
-	env       string
-	providers map[paynp.ProviderName]paynp.Provider
-	esewaApp  *esewa.MobileClient
+	baseURL    string
+	env        string
+	providers  map[paynp.ProviderName]paynp.Provider
+	esewaApp   *esewa.MobileClient
+	appSchemes []string
 
 	mu       sync.Mutex
 	attempts map[string]*attempt
@@ -79,10 +76,11 @@ type shop struct {
 func main() {
 	addr := envOr("ADDR", ":8080")
 	s := &shop{
-		baseURL:   strings.TrimRight(envOr("BASE_URL", "http://localhost"+addr), "/"),
-		env:       envOr("PAYNP_ENV", "sandbox"),
-		providers: map[paynp.ProviderName]paynp.Provider{},
-		attempts:  map[string]*attempt{},
+		baseURL:    strings.TrimRight(envOr("BASE_URL", "http://localhost"+addr), "/"),
+		env:        envOr("PAYNP_ENV", "sandbox"),
+		providers:  map[paynp.ProviderName]paynp.Provider{},
+		attempts:   map[string]*attempt{},
+		appSchemes: strings.Split(envOr("APP_RETURN_SCHEMES", "paynp"), ","),
 	}
 	environment := paynp.Sandbox
 	if s.env == "production" {
@@ -103,6 +101,9 @@ func main() {
 	mux.HandleFunc("POST /webhook/hamropay", s.hamropayWebhook)
 	mux.HandleFunc("GET /providers/{name}", s.providerDocs)
 	mux.HandleFunc("POST /api/esewa/mobile-verify", s.esewaMobileVerify)
+	mux.HandleFunc("POST /api/payments", s.apiCreatePayment)
+	mux.HandleFunc("GET /api/payments/{txn}", s.apiGetPayment)
+	mux.HandleFunc("GET /pay/{txn}", s.openCheckout)
 	mux.HandleFunc("GET /attempts/{txn}", s.show)
 	mux.HandleFunc("POST /attempts/{txn}/lookup", s.recheck)
 
@@ -234,36 +235,58 @@ func (s *shop) index(w http.ResponseWriter, r *http.Request) {
 	render(w, "checkout.html", map[string]any{"Selected": selected, "Title": "Checkout", "Page": "checkout", "Env": s.env, "Providers": opts, "Enabled": len(s.providers), "Total": len(catalog), "Attempts": list})
 }
 
-func (s *shop) pay(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.providers[paynp.ProviderName(r.FormValue("provider"))]
+var errUnknownProvider = errors.New("provider not configured")
+
+type startRequest struct {
+	Provider  paynp.ProviderName
+	Amount    paynp.Paisa
+	Desc      string
+	Customer  paynp.Customer
+	AppReturn string
+}
+
+func (s *shop) start(ctx context.Context, req startRequest) (*attempt, error) {
+	p, ok := s.providers[req.Provider]
 	if !ok {
-		http.Error(w, "provider not configured", http.StatusBadRequest)
-		return
+		return nil, errUnknownProvider
 	}
+	a := &attempt{ID: newTxnID(), Provider: p.Name(), Amount: req.Amount, Desc: req.Desc, CreatedAt: time.Now(), AppReturn: req.AppReturn}
+	ret := fmt.Sprintf("%s/return/%s/%s", s.baseURL, p.Name(), a.ID)
+	co, err := p.Initiate(ctx, paynp.InitiateRequest{
+		TxnID: a.ID, Amount: req.Amount, Description: req.Desc,
+		SuccessURL: ret, FailureURL: ret + "?failed=1", Customer: req.Customer,
+	})
+	if err != nil {
+		a.Status = paynp.StatusFailed
+		a.log("initiate", "", err.Error())
+		s.save(a)
+		return a, err
+	}
+	a.Ref, a.Status, a.checkout = co.ProviderRef, paynp.StatusPending, co
+	a.log("initiate", paynp.StatusPending, fmt.Sprintf("%s %s ref=%q", co.Method, co.URL, co.ProviderRef))
+	s.save(a)
+	return a, nil
+}
+
+func (s *shop) pay(w http.ResponseWriter, r *http.Request) {
 	amount, err := paynp.ParseRupees(r.FormValue("amount"))
 	if err != nil || amount <= 0 {
 		http.Error(w, "invalid amount", http.StatusBadRequest)
 		return
 	}
-	a := &attempt{ID: newTxnID(), Provider: p.Name(), Amount: amount, Desc: strings.TrimSpace(r.FormValue("description")), CreatedAt: time.Now()}
-	ret := fmt.Sprintf("%s/return/%s/%s", s.baseURL, p.Name(), a.ID)
-	co, err := p.Initiate(r.Context(), paynp.InitiateRequest{
-		TxnID: a.ID, Amount: amount, Description: a.Desc,
-		SuccessURL: ret, FailureURL: ret + "?failed=1",
+	a, err := s.start(r.Context(), startRequest{
+		Provider: paynp.ProviderName(r.FormValue("provider")), Amount: amount, Desc: strings.TrimSpace(r.FormValue("description")),
 		Customer: paynp.Customer{Name: r.FormValue("name"), Email: r.FormValue("email"), Phone: r.FormValue("phone")},
 	})
-	if err != nil {
-		a.Status = paynp.StatusFailed
-		a.log("initiate", "", err.Error())
-		s.save(a) // not yet shared, so no lock needed above
+	switch {
+	case a == nil:
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	case err != nil:
 		http.Redirect(w, r, "/attempts/"+a.ID, http.StatusSeeOther)
-		return
-	}
-	a.Ref, a.Status = co.ProviderRef, paynp.StatusPending
-	a.log("initiate", paynp.StatusPending, fmt.Sprintf("%s %s ref=%q", co.Method, co.URL, co.ProviderRef))
-	s.save(a)
-	if err := co.Write(w, r); err != nil {
-		log.Print(err)
+	default:
+		if err := a.checkout.Write(w, r); err != nil {
+			log.Print(err)
+		}
 	}
 }
 
@@ -296,10 +319,16 @@ func (s *shop) handleReturn(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	s.lookup(r.Context(), a)
+	if a.AppReturn != "" {
+		s.mu.Lock()
+		target := appReturnURL(a.AppReturn, a.ID, a.Status)
+		s.mu.Unlock()
+		http.Redirect(w, r, target, http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, "/attempts/"+a.ID, http.StatusSeeOther)
 }
 
-// hamropayWebhook records a signed webhook, then confirms it with Lookup.
 func (s *shop) hamropayWebhook(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.providers[paynp.HamroPay].(*hamropay.Client)
 	if !ok {
@@ -329,7 +358,6 @@ func (s *shop) hamropayWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// esewaMobileVerify checks a payment made with eSewa's Android/iOS/Flutter SDK.
 func (s *shop) esewaMobileVerify(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	reply := func(code int, v map[string]any) {

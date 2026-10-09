@@ -393,3 +393,18 @@ ul.notes {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+.mobile-note {
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--panel);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.sub-h {
+  margin: 28px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}

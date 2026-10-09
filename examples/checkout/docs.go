@@ -18,20 +18,21 @@ type envVar struct {
 type link struct{ Label, URL string }
 
 type providerDoc struct {
-	Summary string
-	GetKeys string
-	Vars    []envVar
-	Notes   []string
-	Links   []link
-	Snippet string
-	// Mobile is server-side verification code for the provider's mobile SDK, if it has its own flow.
-	Mobile string
+	Summary    string
+	GetKeys    string
+	Vars       []envVar
+	Notes      []string
+	Links      []link
+	Snippet    string
+	MobileSDK  string
+	MobileNote string
 }
 
 var docs = map[paynp.ProviderName]providerDoc{
 	paynp.Esewa: {
-		Summary: "eSewa ePay v2. The browser form-POSTs a signed request; eSewa returns a signed base64 payload and offers a status API.",
-		GetKeys: "Sandbox works out of the box with eSewa's public EPAYTEST merchant. For live keys, apply for an eSewa merchant account.",
+		MobileNote: "Open checkout_url in an in-app browser, or use eSewa’s native SDK and verify the refId on your server (below).",
+		Summary:    "eSewa ePay v2. The browser form-POSTs a signed request; eSewa returns a signed base64 payload and offers a status API.",
+		GetKeys:    "Sandbox works out of the box with eSewa's public EPAYTEST merchant. For live keys, apply for an eSewa merchant account.",
 		Vars: []envVar{
 			{Name: "ESEWA_PRODUCT_CODE", Desc: "Merchant product code", Required: true, Builtin: "EPAYTEST"},
 			{Name: "ESEWA_SECRET_KEY", Desc: "HMAC-SHA256 signing secret", Required: true, Builtin: "eSewa's published sandbox secret"},
@@ -45,7 +46,7 @@ var docs = map[paynp.ProviderName]providerDoc{
 			"Status API maps COMPLETE → SUCCESS, PENDING/AMBIGUOUS → PENDING, NOT_FOUND → NOT_FOUND.",
 			"Mobile SDK payments use different credentials (client ID/secret) and esewa.NewMobile; the SDK test login is 9711111111, Nepal@123, MPIN 1122, token 123456.",
 		},
-		Mobile: `// The app pays with eSewa's Android/iOS/Flutter SDK using a productId you
+		MobileSDK: `// The app pays with eSewa's Android/iOS/Flutter SDK using a productId you
 // generate per order, then sends your backend the refId the SDK returned.
 app, err := esewa.NewMobile(esewa.MobileConfig{
     ClientID:     esewa.SandboxMobileClientID,
@@ -67,8 +68,9 @@ if err == nil && tx.Status == paynp.StatusSuccess {
 })`,
 	},
 	paynp.Khalti: {
-		Summary: "Khalti ePayment (KPG-2). The server registers the payment and gets a pidx and payment_url; the user is redirected there.",
-		GetKeys: "Sandbox uses the dev.khalti.com key Khalti publishes in its docs. Your own test key is at test-admin.khalti.com.",
+		MobileNote: "Open checkout_url in an in-app browser, or pass provider_ref (the pidx) to Khalti’s Android/iOS/Flutter SDK. Confirm with the status API either way.",
+		Summary:    "Khalti ePayment (KPG-2). The server registers the payment and gets a pidx and payment_url; the user is redirected there.",
+		GetKeys:    "Sandbox uses the dev.khalti.com key Khalti publishes in its docs. Your own test key is at test-admin.khalti.com.",
 		Vars: []envVar{
 			{Name: "KHALTI_SECRET_KEY", Desc: "Secret key sent as Authorization: Key …", Required: true, Builtin: "Khalti's published dev key"},
 			{Name: "KHALTI_WEBSITE_URL", Desc: "Merchant site shown on Khalti checkout (defaults to BASE_URL)"},
@@ -85,8 +87,9 @@ if err == nil && tx.Status == paynp.StatusSuccess {
 })`,
 	},
 	paynp.ConnectIPS: {
-		Summary: "NCHL ConnectIPS. The browser form-POSTs a request signed with your merchant RSA key; status comes from gettxndetail.",
-		GetKeys: "Request UAT access and a .pfx certificate from NCHL through your bank. Register success/failure URLs with NCHL.",
+		MobileNote: "In-app browser only. NCHL returns to the URL registered with it, then the server redirects to the app.",
+		Summary:    "NCHL ConnectIPS. The browser form-POSTs a request signed with your merchant RSA key; status comes from gettxndetail.",
+		GetKeys:    "Request UAT access and a .pfx certificate from NCHL through your bank. Register success/failure URLs with NCHL.",
 		Vars: []envVar{
 			{Name: "CONNECTIPS_MERCHANT_ID", Desc: "Numeric merchant ID", Required: true},
 			{Name: "CONNECTIPS_APP_ID", Desc: "Application ID", Required: true},
@@ -110,8 +113,9 @@ p, err := connectips.New(connectips.Config{
 })`,
 	},
 	paynp.Fonepay: {
-		Summary: "Fonepay web redirect. A signed GET redirect; Fonepay signs its return and verifies with the UID it returns.",
-		GetKeys: "Ask Fonepay for a dev merchant code and secret. Fonepay publishes no public spec; verify in their dev environment.",
+		MobileNote: "In-app browser only. The user must come back through the return URL: Fonepay’s Lookup needs its UID.",
+		Summary:    "Fonepay web redirect. A signed GET redirect; Fonepay signs its return and verifies with the UID it returns.",
+		GetKeys:    "Ask Fonepay for a dev merchant code and secret. Fonepay publishes no public spec; verify in their dev environment.",
 		Vars: []envVar{
 			{Name: "FONEPAY_MERCHANT_CODE", Desc: "Merchant code (PID)", Required: true},
 			{Name: "FONEPAY_SECRET_KEY", Desc: "HMAC-SHA512 secret", Required: true},
@@ -126,8 +130,9 @@ p, err := connectips.New(connectips.Config{
 })`,
 	},
 	paynp.HamroPay: {
-		Summary: "Hamro Pay Checkout. The server creates a session, signs a token, and the browser form-POSTs to the gateway. Hamro Pay also sends a signed webhook.",
-		GetKeys: "Free self-service UAT keys: sign up at pay-sandbox.hamropatro.com/signup (verification OTP 000000), then copy them from Client Credentials.",
+		MobileNote: "In-app browser via checkout_url. Hamro Pay’s signed webhook also confirms payments the app never returns from.",
+		Summary:    "Hamro Pay Checkout. The server creates a session, signs a token, and the browser form-POSTs to the gateway. Hamro Pay also sends a signed webhook.",
+		GetKeys:    "Free self-service UAT keys: sign up at pay-sandbox.hamropatro.com/signup (verification OTP 000000), then copy them from Client Credentials.",
 		Vars: []envVar{
 			{Name: "HAMROPAY_MERCHANT_ID", Desc: "Merchant ID", Required: true},
 			{Name: "HAMROPAY_CLIENT_ID", Desc: "Client-Id header", Required: true},
@@ -153,8 +158,9 @@ p, err := connectips.New(connectips.Config{
 })`,
 	},
 	paynp.IMEPay: {
-		Summary: "IME Pay web checkout. The server gets a token that binds the amount, the user is redirected, then Confirm or Recheck settles it.",
-		GetKeys: "Ask IME Pay for staging merchant credentials. IME publishes no public spec; verify in staging.",
+		MobileNote: "In-app browser via checkout_url; the token in provider_ref is what Lookup rechecks.",
+		Summary:    "IME Pay web checkout. The server gets a token that binds the amount, the user is redirected, then Confirm or Recheck settles it.",
+		GetKeys:    "Ask IME Pay for staging merchant credentials. IME publishes no public spec; verify in staging.",
 		Vars: []envVar{
 			{Name: "IMEPAY_MERCHANT_CODE", Desc: "Merchant code", Required: true},
 			{Name: "IMEPAY_MODULE", Desc: "Module name (sent base64 in the Module header)", Required: true},
