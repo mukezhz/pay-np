@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -34,10 +35,17 @@ import (
 	"github.com/mukezhz/pay-np/khalti"
 )
 
-//go:embed templates/*.html
-var templateFS embed.FS
+//go:embed web
+var webFS embed.FS
 
-var pages = template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html"))
+// pages holds one template set per page: layout.html plus the page's "content".
+var pages = func() map[string]*template.Template {
+	m := map[string]*template.Template{}
+	for _, name := range []string{"landing", "checkout", "attempt", "provider"} {
+		m[name] = template.Must(template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/"+name+".html"))
+	}
+	return m
+}()
 
 type attempt struct {
 	ID        string
@@ -84,6 +92,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	static, _ := fs.Sub(webFS, "web")
+	mux.Handle("GET /static/", http.FileServerFS(static))
 	mux.HandleFunc("GET /{$}", s.landing)
 	mux.HandleFunc("GET /checkout", s.index)
 	mux.HandleFunc("POST /pay", s.pay)
@@ -362,9 +372,14 @@ func (a *attempt) log(kind string, st paynp.Status, detail string) {
 	a.Events = append(a.Events, event{At: time.Now(), Kind: kind, Status: st, Detail: detail})
 }
 
-func render(w http.ResponseWriter, name string, data any) {
+func render(w http.ResponseWriter, name string, data map[string]any) {
+	page := strings.TrimSuffix(name, ".html")
+	data["Style"] = page
+	if _, err := fs.Stat(webFS, "web/static/js/"+page+".js"); err == nil {
+		data["Script"] = page
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := pages.ExecuteTemplate(w, name, data); err != nil {
+	if err := pages[page].ExecuteTemplate(w, "layout", data); err != nil {
 		log.Print(err)
 	}
 }

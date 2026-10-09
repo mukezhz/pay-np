@@ -1,0 +1,66 @@
+{{define "content"}}{{$a := .A}}{{$p := info $a.Provider}}
+
+<main class="wrap page">
+  <div class="crumbs"><a href="/checkout">Checkout</a><span class="faint">/</span><b class="mono">{{$a.ID}}</b></div>
+
+  <div class="detail">
+    <article>
+      <h1>{{or $a.Desc "Untitled payment"}}</h1>
+      <div class="idline">Rs {{rupees $a.Amount}} via {{$p.Label}} · created {{ago $a.CreatedAt}}</div>
+
+      {{with explain $a.Status}}<div class="callout" role="status"><span class="st {{$a.Status}}"><i></i></span><span><b style="color:var(--text);font-weight:500">{{title $a.Status}}.</b> {{.}}</span></div>{{end}}
+
+      <div class="steps" aria-label="Payment flow">
+        {{range $i, $s := steps $a}}
+        <div class="{{$s.State}}">
+          <span class="sdot">{{if eq $s.State "done"}}✓{{else if eq $s.State "error"}}!{{else}}{{inc $i}}{{end}}</span>
+          <strong>{{$s.Title}}</strong>
+          <span class="small">{{if eq $s.State "waiting"}}Waiting for the user to return{{else}}{{$s.Note}}{{end}}</span>
+        </div>
+        {{end}}
+      </div>
+
+      <section class="activity" aria-labelledby="act-h">
+        <h2 id="act-h">Activity</h2>
+        <ol class="feed">
+          {{range $a.Events}}
+          <li>
+            <span class="node"><span class="st {{or .Status "FAILED"}}"><i></i></span></span>
+            <div class="ev">
+              <b>{{.Kind}}</b> {{if .Status}}→ {{title .Status}}{{else}}failed{{end}}<time datetime="{{.At.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.Format "15:04:05"}}</time>
+              {{if .Detail}}{{if .Status}}
+              <!-- prettier-ignore -->
+<details {{if eq .Kind "lookup"}}open{{end}}><summary>Raw response</summary><pre class="raw">{{.Detail}}</pre></details>
+              {{else}}<div class="err">{{.Detail}}</div>{{end}}{{end}}
+            </div>
+          </li>
+          {{end}}
+        </ol>
+      </section>
+    </article>
+
+    <aside class="side panel" aria-label="Properties">
+      <dl class="props">
+        <div class="prop"><dt>Status</dt><dd><span class="st {{$a.Status}}"><i></i>{{title $a.Status}}</span></dd></div>
+        <div class="prop"><dt>Provider</dt><dd><span class="mono-badge sm" style="--c:{{css $p.Color}}" aria-hidden="true">{{$p.Mono}}</span>{{$p.Label}}</dd></div>
+        <div class="prop"><dt>Amount</dt><dd style="font-variant-numeric:tabular-nums">Rs {{rupees $a.Amount}}</dd></div>
+        <div class="prop"><dt>Transaction</dt><dd><span class="mono" id="txn">{{$a.ID}}</span><button class="copy" type="button" data-copy="txn">Copy</button></dd></div>
+        <div class="prop"><dt>Provider ref</dt><dd>{{if $a.Ref}}<span class="mono" id="ref">{{$a.Ref}}</span><button class="copy" type="button" data-copy="ref">Copy</button>{{else}}<span class="faint">—</span>{{end}}</dd></div>
+        <div class="prop"><dt>Created</dt><dd>{{$a.CreatedAt.Format "Jan 2, 15:04:05"}}</dd></div>
+      </dl>
+      <div class="side-actions">
+        <form method="post" action="/attempts/{{$a.ID}}/lookup"><button class="btn primary" type="submit">{{if final $a.Status}}Look up again{{else}}Check status{{end}} <kbd>R</kbd></button></form>
+        {{if ne $a.Status "SUCCESS"}}
+        <form method="post" action="/pay">
+          <input type="hidden" name="provider" value="{{$a.Provider}}">
+          <input type="hidden" name="amount" value="{{rupees $a.Amount}}">
+          <input type="hidden" name="description" value="{{$a.Desc}}">
+          <button class="btn" type="submit">Pay again</button>
+        </form>
+        {{end}}
+      </div>
+    </aside>
+  </div>
+</main>
+
+{{end}}

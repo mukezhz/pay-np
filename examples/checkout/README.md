@@ -14,6 +14,9 @@ provider responses (`R` re-runs Lookup); `/providers/{name}` is a per-provider g
 which env vars are set, built in or missing, plus copy-paste code to integrate it in your own
 Go app (setup, start, return + Lookup, webhook, reconcile).
 
+UI lives in `web/`: `templates/` (a `layout.html` plus one `{{define "content"}}` per page),
+`static/css/` and `static/js/`, all embedded into the binary.
+
 eSewa and Khalti work with no setup (their published sandbox merchants). Other providers
 are enabled by env vars. Attempts are kept in memory only.
 
