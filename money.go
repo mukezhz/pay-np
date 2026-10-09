@@ -6,11 +6,9 @@ import (
 	"strings"
 )
 
-// Paisa is an amount in NPR minor units (1 rupee = 100 paisa). Integer money
-// avoids float rounding; providers that speak rupees convert at the edge.
+// Paisa is NPR in minor units (100 paisa = 1 rupee).
 type Paisa int64
 
-// Rupees formats as "123.45".
 func (p Paisa) Rupees() string {
 	sign := ""
 	if p < 0 {
@@ -19,8 +17,7 @@ func (p Paisa) Rupees() string {
 	return fmt.Sprintf("%s%d.%02d", sign, p/100, p%100)
 }
 
-// ParseRupees parses provider rupee strings such as "100", "133.0", "1,000.50",
-// "10.0000". Non-zero digits past the paisa are rejected.
+// ParseRupees accepts "100", "133.0", "1,000.50" and "10.0000"; sub-paisa is rejected.
 func ParseRupees(s string) (Paisa, error) {
 	s = strings.ReplaceAll(strings.TrimSpace(s), ",", "")
 	whole, frac, _ := strings.Cut(s, ".")

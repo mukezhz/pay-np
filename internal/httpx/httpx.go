@@ -1,4 +1,3 @@
-// Package httpx is the shared HTTP plumbing for provider adapters.
 package httpx
 
 import (
@@ -31,7 +30,6 @@ type Request struct {
 	Close   bool // send Connection: close (servers that drop keep-alive sockets)
 }
 
-// Do sends req and returns the body; non-2xx (and 4xx unless Allow4x) becomes *paynp.APIError.
 func Do(ctx context.Context, c *http.Client, p paynp.ProviderName, req Request) (int, []byte, error) {
 	var body io.Reader
 	header := req.Header.Clone()

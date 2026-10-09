@@ -14,7 +14,6 @@ var (
 	ErrCallbackRequired = errors.New("paynp: lookup needs the provider callback")
 )
 
-// APIError is a non-success response from a provider API.
 type APIError struct {
 	Provider   ProviderName
 	StatusCode int

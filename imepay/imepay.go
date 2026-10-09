@@ -1,7 +1,4 @@
-// Package imepay implements paynp.Provider for IME Pay web checkout.
-//
-// IME Pay publishes no public spec; hosts and GetToken/Confirm come from IME's
-// own SDK config, checkout/recheck from independent integrations. Verify in staging.
+// Package imepay implements paynp.Provider for IME Pay web checkout (no public spec; verify in staging).
 package imepay
 
 import (
@@ -72,7 +69,6 @@ type apiResponse struct {
 	TranAmount          json.RawMessage `json:"TranAmount"`
 }
 
-// Initiate obtains a token (binding the amount) and redirects to IME checkout.
 func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -109,7 +105,6 @@ func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*payn
 
 var callbackFields = []string{"ResponseCode", "ResponseDescription", "Msisdn", "TransactionId", "RefId", "TranAmount", "TokenId"}
 
-// ParseCallback decodes the unsigned ?data= IME appends; always Lookup.
 func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	raw, err := base64.StdEncoding.DecodeString(query.Get("data"))
 	parts := strings.Split(string(raw), "|")
@@ -137,8 +132,7 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	}, nil
 }
 
-// Lookup confirms the payment (Confirm, when the callback carried a
-// TransactionId) or rechecks it by token (reconciliation).
+// Lookup uses Confirm when the callback has a TransactionId, else Recheck.
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {
 	token := req.ProviderRef
 	if token == "" && req.Callback != nil {
@@ -169,8 +163,7 @@ func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Tr
 		Raw:         raw,
 	}
 	if tx.Status == paynp.StatusSuccess {
-		// The token bound the amount at GetToken and the reply echoes our token/RefId,
-		// so fall back to it when the reply omits an amount.
+		// GetToken bound the amount, so fall back to it when the reply omits one.
 		tx.Amount = req.Amount
 		if s := cmp.Or(scalar(r.TranAmount), scalar(r.Amount)); s != "" {
 			if tx.Amount, err = paynp.ParseRupees(s); err != nil {
@@ -206,7 +199,7 @@ func mapCode(code string) paynp.Status {
 	}
 }
 
-// scalar renders a JSON string or number as text; IME is inconsistent about which.
+// IME sends some fields as strings or numbers inconsistently.
 func scalar(m json.RawMessage) string {
 	s := strings.TrimSpace(string(m))
 	if s == "null" {

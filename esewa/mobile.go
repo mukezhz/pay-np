@@ -11,7 +11,6 @@ import (
 	"github.com/mukezhz/pay-np/internal/httpx"
 )
 
-// Sandbox SDK merchant published in eSewa's Android/iOS/Flutter docs.
 const (
 	SandboxMobileClientID     = "JB0BBQ4aD0UqIThFJwAKBgAXEUkEGQUBBAwdOgABHD4DChwUAB0R"
 	SandboxMobileClientSecret = "BhwIWQQADhIYSxILExMcAgFXFhcOBwAKBgAXEQ=="
@@ -22,7 +21,6 @@ var mobileVerifyURLs = map[paynp.Environment]string{
 	paynp.Production: "https://esewa.com.np/mobile/transaction",
 }
 
-// MobileConfig holds the SDK client credentials (not the ePay v2 secret).
 type MobileConfig struct {
 	ClientID     string
 	ClientSecret string
@@ -31,8 +29,7 @@ type MobileConfig struct {
 	HTTPClient   *http.Client
 }
 
-// MobileClient verifies payments made with eSewa's Android, iOS or Flutter SDK.
-// The app pays in-app and hands its backend the refId; nothing is initiated server-side.
+// MobileClient verifies payments made in-app with eSewa's Android/iOS/Flutter SDK.
 type MobileClient struct {
 	cfg  MobileConfig
 	http *http.Client
@@ -52,13 +49,10 @@ func NewMobile(cfg MobileConfig) (*MobileClient, error) {
 }
 
 type MobileVerifyRequest struct {
-	// ProductID is the productId the app passed to the SDK. Make it unique per
-	// order: it is what binds the payment to the order.
+	// ProductID must be unique per order; it binds the payment to the order.
 	ProductID string
-	// RefID is the refId the SDK returned; preferred lookup key when present.
-	RefID string
-	// Amount is what the order costs, from your records.
-	Amount paynp.Paisa
+	RefID     string
+	Amount    paynp.Paisa
 }
 
 type mobileTxn struct {
@@ -70,8 +64,6 @@ type mobileTxn struct {
 	} `json:"transactionDetails"`
 }
 
-// Verify asks eSewa for the payment by refId (or productId + amount) and only
-// reports SUCCESS for a COMPLETE transaction of this product and amount.
 func (c *MobileClient) Verify(ctx context.Context, req MobileVerifyRequest) (*paynp.Transaction, error) {
 	if req.ProductID == "" || req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: esewa mobile verify needs ProductID and Amount", paynp.ErrInvalidRequest)

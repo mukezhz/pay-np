@@ -34,16 +34,14 @@ type Config struct {
 	MerchantID string
 	AppID      string
 	AppName    string
-	// Username/Password authenticate the status API (HTTP Basic). Username
-	// defaults to AppID.
+	// Username defaults to AppID.
 	Username    string
 	Password    string
 	PrivateKey  *rsa.PrivateKey
 	Environment paynp.Environment
-	// Host overrides the environment default (e.g. a test server).
-	Host       string
-	HTTPClient *http.Client
-	Now        func() time.Time
+	Host        string
+	HTTPClient  *http.Client
+	Now         func() time.Time
 }
 
 type Client struct {
@@ -78,7 +76,6 @@ func New(cfg Config) (*Client, error) {
 	return &Client{cfg: cfg, merchantID: mid, http: httpx.DefaultClient(cfg.HTTPClient)}, nil
 }
 
-// ParsePFX extracts the RSA signing key from the .pfx NCHL issues to the merchant.
 func ParsePFX(data []byte, password string) (*rsa.PrivateKey, error) {
 	key, _, err := pkcs12.Decode(data, password)
 	if err != nil {
@@ -93,8 +90,7 @@ func ParsePFX(data []byte, password string) (*rsa.PrivateKey, error) {
 
 func (c *Client) Name() paynp.ProviderName { return paynp.ConnectIPS }
 
-// Initiate signs the login form. Success/failure URLs are registered with NCHL,
-// so the request's URLs are ignored; NCHL appends ?TXNID= on return.
+// Return URLs are registered with NCHL, so the request's URLs are ignored.
 func (c *Client) Initiate(_ context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -137,7 +133,6 @@ func (c *Client) Initiate(_ context.Context, req paynp.InitiateRequest) (*paynp.
 	}, nil
 }
 
-// ParseCallback reads the unsigned ?TXNID= NCHL appends on return; always Lookup.
 func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	id := query.Get("TXNID")
 	if id == "" {

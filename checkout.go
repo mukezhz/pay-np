@@ -14,8 +14,7 @@ var autoSubmit = template.Must(template.New("checkout").Parse(`<!doctype html>
 {{end}}<noscript><button type="submit">Continue to payment</button></noscript>
 </form></body></html>`))
 
-// Write sends the user to the provider: a 302 for GET checkouts, an
-// auto-submitting HTML form for POST checkouts (eSewa, ConnectIPS).
+// Write redirects (GET) or renders an auto-submitting form (POST).
 func (c *Checkout) Write(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Cache-Control", "no-store")
 	if c.Method != http.MethodPost {
@@ -30,7 +29,6 @@ func (c *Checkout) Write(w http.ResponseWriter, r *http.Request) error {
 	return autoSubmit.Execute(w, c)
 }
 
-// RedirectURL is the URL for GET checkouts with Fields merged into the query.
 func (c *Checkout) RedirectURL() (string, error) {
 	u, err := url.Parse(c.URL)
 	if err != nil {
