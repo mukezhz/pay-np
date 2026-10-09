@@ -22,6 +22,9 @@ var baseURLs = map[paynp.Environment]string{
 
 const MinAmount paynp.Paisa = 1000
 
+// SandboxSecretKey is the dev.khalti.com key published in Khalti's docs.
+const SandboxSecretKey = "live_secret_key_68791341fdd94846a146f0457ff7b455"
+
 type Config struct {
 	SecretKey string
 	// WebsiteURL is the merchant site Khalti shows on its checkout page.
