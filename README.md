@@ -17,6 +17,7 @@ go get github.com/mukezhz/pay-np
 | Khalti ePayment | `khalti` | redirect (`pidx`) | ❌ | ✅ by pidx | official docs |
 | ConnectIPS (NCHL) | `connectips` | form POST, RSA token | ❌ | ✅ by TxnID | official docs |
 | Fonepay web | `fonepay` | redirect | ✅ HMAC-SHA512 | ⚠️ needs callback `UID` | community implementations — verify in dev |
+| Hamro Pay Checkout | `hamropay` | form POST (session + token) | ❌ redirect · ✅ webhook (HMAC-SHA512) | ✅ Get Transaction by TxnID | official docs |
 | IME Pay web | `imepay` | redirect (token) | ❌ | ✅ Confirm / Recheck by token | IME SDK config + community — verify in staging |
 
 Prabhu Pay and NPS OnePG publish no developer docs; contributions welcome.
@@ -105,6 +106,11 @@ tab after paying, and none of these providers sends webhooks.
 - **Fonepay** — one return URL (`SuccessURL`), PRN (TxnID) 3–25 chars. The verification API is
   keyed by the `UID` Fonepay returns on redirect, so `Lookup` needs `req.Callback` and returns
   `ErrCallbackRequired` without it: abandoned payments cannot be reconciled by this flow.
+- **Hamro Pay** — free self-service UAT keys at pay-sandbox.hamropatro.com. Amount Rs 10–50,000,
+  TxnID ≤ 25 chars without commas. Both redirects only append `?MerchantTxnId=` (unsigned).
+  `ParseWebhook(header, body)` verifies the signed webhook with `WebhookSecret` — the only
+  signed status source; still match its amount. Production URLs come with live onboarding, so
+  set `APIBaseURL`/`GatewayURL` for `Production`.
 - **IME Pay** — `Initiate` calls GetToken (binds the amount); persist `Checkout.ProviderRef`
   (token). `Lookup` calls Confirm when the callback carried a TransactionId, otherwise Recheck.
 
