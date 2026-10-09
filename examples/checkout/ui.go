@@ -31,6 +31,9 @@ var catalog = []providerInfo{
 		Lookup: "gettxndetail by TxnID", Sandbox: "UAT bank login from NCHL", Env: "CONNECTIPS_MERCHANT_ID, _APP_ID, _APP_NAME, _PASSWORD, _PFX_PATH"},
 	{Name: paynp.Fonepay, Label: "Fonepay", Mono: "F", Color: "#d32f2f", Checkout: "Redirect", Signed: true,
 		Lookup: "Needs callback UID", Sandbox: "Dev merchant from Fonepay", Env: "FONEPAY_MERCHANT_CODE, FONEPAY_SECRET_KEY"},
+	{Name: paynp.HamroPay, Label: "Hamro Pay", Mono: "H", Color: "#c8102e", Checkout: "Form POST (session)",
+		Lookup: "Get Transaction + signed webhook", Sandbox: "Wallet 9841414141 · T-PIN 0000 · OTP 000000 = success, 111111 = pending, 222222 = failed",
+		Env: "HAMROPAY_MERCHANT_ID, _CLIENT_ID, _CLIENT_API_KEY, _CLIENT_SECRET (free UAT signup at pay-sandbox.hamropatro.com)"},
 	{Name: paynp.IMEPay, Label: "IME Pay", Mono: "I", Color: "#e65100", Checkout: "Redirect (token)",
 		Lookup: "Confirm / Recheck by token", Sandbox: "Staging merchant from IME", Env: "IMEPAY_MERCHANT_CODE, _MODULE, _API_USER, _API_PASSWORD"},
 }
@@ -67,7 +70,7 @@ func steps(a *attempt) []step {
 		{"Callback", "idle", "Provider redirects the user back (a hint only)"},
 		{"Lookup", "idle", "Ask the provider server-to-server (authoritative)"},
 	}
-	idx := map[string]int{"initiate": 0, "callback": 1, "lookup": 2}
+	idx := map[string]int{"initiate": 0, "callback": 1, "webhook": 1, "lookup": 2}
 	for _, e := range a.Events {
 		i := idx[e.Kind]
 		s[i].State = "done"

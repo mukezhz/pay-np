@@ -58,7 +58,7 @@
     <div class="wrap">
       <a class="eyebrow" href="/checkout"><b>{{.Enabled}}/{{.Total}}</b> providers ready in {{.Env}} →</a>
       <h1>Every Nepali payment gateway. One Go interface.</h1>
-      <p class="lede">eSewa, Khalti, ConnectIPS, Fonepay and IME Pay behind <code>paynp.Provider</code>. Integer paisa, verified callbacks, and a server-side Lookup you can trust.</p>
+      <p class="lede">eSewa, Khalti, ConnectIPS, Fonepay, IME Pay and Hamro Pay behind <code>paynp.Provider</code>. Integer paisa, verified callbacks, and a server-side Lookup you can trust.</p>
       <div class="ctas">
         <a class="btn primary lg" href="/checkout">Try the test checkout <kbd>C</kbd></a>
         <a class="btn lg" href="https://github.com/mukezhz/pay-np" rel="noopener">View on GitHub</a>
@@ -128,8 +128,8 @@ tx, err := p.<span class="f">Lookup</span>(ctx, paynp.<span class="t">LookupRequ
   <section class="block">
     <div class="wrap">
       <div class="kicker">Providers</div>
-      <h2>Five gateways, one shape.</h2>
-      <p>eSewa and Khalti run against their public sandboxes out of the box. The rest need merchant credentials.</p>
+      <h2>Six gateways, one shape.</h2>
+      <p>eSewa and Khalti run against their public sandboxes out of the box. Hamro Pay has free self-service UAT keys; the rest need merchant credentials.</p>
       <div class="panel providers">
         <div class="prow head"><span>Provider</span><span class="hide-sm">Checkout</span><span class="hide-sm">Callback</span><span class="hide-sm">Status check</span><span>Here</span></div>
         {{range .Providers}}

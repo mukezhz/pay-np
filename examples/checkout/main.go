@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/mukezhz/pay-np/connectips"
 	"github.com/mukezhz/pay-np/esewa"
 	"github.com/mukezhz/pay-np/fonepay"
+	"github.com/mukezhz/pay-np/hamropay"
 	"github.com/mukezhz/pay-np/imepay"
 	"github.com/mukezhz/pay-np/khalti"
 )
@@ -87,6 +89,7 @@ func main() {
 	mux.HandleFunc("POST /pay", s.pay)
 	mux.HandleFunc("/return/{provider}/{txn}", s.handleReturn)
 	mux.HandleFunc("/return/{provider}", s.handleReturn) // ConnectIPS: URL registered with NCHL, TXNID in query
+	mux.HandleFunc("POST /webhook/hamropay", s.hamropayWebhook)
 	mux.HandleFunc("GET /attempts/{txn}", s.show)
 	mux.HandleFunc("POST /attempts/{txn}/lookup", s.recheck)
 
@@ -145,6 +148,14 @@ func (s *shop) configure(env paynp.Environment) error {
 	}
 	if code := os.Getenv("FONEPAY_MERCHANT_CODE"); code != "" {
 		if err := add(fonepay.New(fonepay.Config{MerchantCode: code, SecretKey: os.Getenv("FONEPAY_SECRET_KEY"), Environment: env})); err != nil {
+			return err
+		}
+	}
+	if mid := os.Getenv("HAMROPAY_MERCHANT_ID"); mid != "" {
+		if err := add(hamropay.New(hamropay.Config{MerchantID: mid, ClientID: os.Getenv("HAMROPAY_CLIENT_ID"),
+			ClientAPIKey: os.Getenv("HAMROPAY_CLIENT_API_KEY"), ClientSecret: os.Getenv("HAMROPAY_CLIENT_SECRET"),
+			WebhookSecret: os.Getenv("HAMROPAY_WEBHOOK_SECRET"), Environment: env,
+			APIBaseURL: os.Getenv("HAMROPAY_API_BASE_URL"), GatewayURL: os.Getenv("HAMROPAY_GATEWAY_URL")})); err != nil {
 			return err
 		}
 	}
@@ -258,6 +269,36 @@ func (s *shop) handleReturn(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	s.lookup(r.Context(), a)
 	http.Redirect(w, r, "/attempts/"+a.ID, http.StatusSeeOther)
+}
+
+// hamropayWebhook records a signed webhook, then confirms it with Lookup.
+func (s *shop) hamropayWebhook(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.providers[paynp.HamroPay].(*hamropay.Client)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, "read body", http.StatusBadRequest)
+		return
+	}
+	cb, err := p.ParseWebhook(r.Header, body)
+	if err != nil {
+		log.Print(err)
+		http.Error(w, "invalid webhook", http.StatusUnauthorized)
+		return
+	}
+	a := s.get(cb.TxnID)
+	if a == nil {
+		w.WriteHeader(http.StatusOK) // not ours; acknowledge so it is not retried
+		return
+	}
+	s.mu.Lock()
+	a.log("webhook", cb.Status, "signature verified: "+string(body))
+	s.mu.Unlock()
+	s.lookup(r.Context(), a)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *shop) recheck(w http.ResponseWriter, r *http.Request) {
