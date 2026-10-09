@@ -1,0 +1,242 @@
+{{ define "content" }}
+  {{ $p := .P }}{{ $d := .D }}
+
+
+  <main class="wrap page">
+    <div class="docs">
+      <nav class="side" aria-label="Providers">
+        <div class="small faint">Providers</div>
+        <ul>
+          {{ range .All }}
+            <li>
+              <a
+                href="/providers/{{ .Name }}"
+                {{ if eq .Name $p.Name }}aria-current="page"{{ end }}
+                ><span class="mono-badge sm" style="--c:{{ css .Color }}" aria-hidden="true">{{ .Mono }}</span
+                >{{ .Label }}<span class="dot {{ if .Enabled }}on{{ end }}" title="{{ .Readiness }}"></span
+              ></a>
+            </li>
+          {{ end }}
+        </ul>
+      </nav>
+
+      <article>
+        <div class="head">
+          <span class="mono-badge" style="--c:{{ css $p.Color }}" aria-hidden="true">{{ $p.Mono }}</span>
+          <h1>{{ $p.Label }}</h1>
+          {{ if $p.Enabled }}
+            <span class="ready on">Ready</span>
+          {{ else }}
+            <span class="ready off">Needs keys</span>
+          {{ end }}
+        </div>
+        <p class="summary">{{ $d.Summary }}</p>
+        <div class="facts">
+          <span class="tag">{{ $p.Checkout }}</span>
+          <span class="tag">{{ if $p.Signed }}Signed callback{{ else }}Unsigned callback{{ end }}</span>
+          <span class="tag">{{ $p.Lookup }}</span>
+          <span class="tag mono">import "github.com/mukezhz/pay-np/{{ $p.Name }}"</span>
+        </div>
+
+        {{ if $p.Enabled }}
+          <div class="banner">
+            <p><b>Configured in this shop.</b> {{ $p.Sandbox }}</p>
+            <a class="btn primary" href="/checkout?provider={{ $p.Name }}">Pay with {{ $p.Label }}</a>
+          </div>
+        {{ else }}
+          <div class="banner warn">
+            <p>
+              <b>{{ .Missing }} required variable{{ if ne .Missing 1 }}s{{ end }} missing.</b> {{ $d.GetKeys }} Set them
+              and restart the shop.
+            </p>
+          </div>
+        {{ end }}
+
+
+        <h2 id="env">Environment</h2>
+        <p>
+          What this test shop reads. Values are never shown. Your own app can pass the same values to
+          <code>Config</code> however it likes.
+        </p>
+        <div class="panel vars">
+          <div class="vrow head"><span>Variable</span><span>Purpose</span><span>Status</span></div>
+          {{ range .Vars }}
+            <div class="vrow">
+              <span><code>{{ .Name }}</code>{{ if .Required }}<span class="req">required</span>{{ end }}</span>
+              <span class="vdesc muted"
+                >{{ .Desc }}{{ if .Builtin }}&#32;· sandbox default: {{ .Builtin }}{{ end }}</span
+              >
+              <span
+                >{{ if eq .State "set" }}
+                  <span class="vstate set">Set</span>
+                {{ else if eq .State "builtin" }}
+                  <span class="vstate builtin">Built-in</span>
+                {{ else if eq .State "missing" }}
+                  <span class="vstate missing">Missing</span>
+                {{ else }}
+                  <span class="vstate unset">Optional</span>
+                {{ end }}</span
+              >
+            </div>
+          {{ end }}
+        </div>
+        {{ if not $p.Enabled }}
+          <!-- prettier-ignore -->
+          <div class="codebox"><div class="bar">.env<button class="copy" type="button" data-copy>Copy</button></div><pre>{{range .Vars}}{{if .Required}}{{.Name}}=
+{{end}}{{end}}</pre></div>
+        {{ end }}
+
+
+        <h2 id="integrate">Integrate in your Go app</h2>
+        <p>The same five steps work for every provider — only the constructor changes.</p>
+        <ol class="steps">
+          <li>
+            <h3>Install</h3>
+            <!-- prettier-ignore -->
+            <div class="codebox"><div class="bar">terminal<button class="copy" type="button" data-copy>Copy</button></div><pre>go get github.com/mukezhz/pay-np</pre></div>
+          </li>
+          <li>
+            <h3>Create the provider</h3>
+            <p>
+              Build it once at startup and keep it as a <code>paynp.Provider</code>. Load secrets from your config,
+              never the browser.
+            </p>
+            <!-- prettier-ignore -->
+            <div class="codebox"><div class="bar">setup.go<button class="copy" type="button" data-copy>Copy</button></div><pre>import (
+    paynp "github.com/mukezhz/pay-np"
+    "github.com/mukezhz/pay-np/{{ $p.Name }}"
+)
+
+{{ $d.Snippet }}
+if err != nil {
+    log.Fatal(err)
+}
+var provider paynp.Provider = p</pre></div>
+          </li>
+          <li>
+            <h3>Start a payment</h3>
+            <p>
+              Generate a unique TxnID per attempt and store it with the
+              amount{{ if or (eq $p.Name "khalti") (eq $p.Name "imepay") }}
+                &#32;and <code>co.ProviderRef</code> — {{ $p.Label }}'s Lookup needs it
+              {{ end }}. <code>co.Write</code> redirects or renders the auto-submit form.
+            </p>
+            <!-- prettier-ignore -->
+            <div class="codebox"><div class="bar">pay.go<button class="copy" type="button" data-copy>Copy</button></div><pre>func pay(w http.ResponseWriter, r *http.Request) {
+    order := loadOrder(r)                   // your amount, never the browser's
+    txnID := newTxnID()                     // unique per attempt, e.g. "ord-42-a1"
+    ret := "https://shop.example/return/" + txnID
+
+    co, err := provider.Initiate(r.Context(), paynp.InitiateRequest{
+        TxnID:       txnID,
+        Amount:      order.Amount,          // paynp.Paisa: Rs 1,500 = 150000
+        Description: order.Title,
+        SuccessURL:  ret,
+        FailureURL:  ret + "?failed=1",
+    })
+    if err != nil {
+        http.Error(w, "payment unavailable", http.StatusBadGateway)
+        return
+    }
+    saveAttempt(txnID, order.ID, order.Amount, co.ProviderRef)
+    co.Write(w, r)
+}</pre></div>
+          </li>
+          <li>
+            <h3>Handle the return, then Lookup</h3>
+            <p>
+              The redirect is only a hint{{ if not $p.Signed }}&#32;and is unsigned{{ end }}. Fulfil only when Lookup
+              says <code>SUCCESS</code>; it already checks the
+              amount.{{ if eq $p.Name "connectips" }}
+                &#32;ConnectIPS returns to the URL registered with NCHL with <code>?TXNID=</code>, so take the TxnID
+                from the callback.
+              {{ end }}
+            </p>
+            <!-- prettier-ignore -->
+            <div class="codebox"><div class="bar">return.go<button class="copy" type="button" data-copy>Copy</button></div><pre>func paymentReturn(w http.ResponseWriter, r *http.Request) {
+    _ = r.ParseForm()
+    cb, _ := provider.ParseCallback(r.Form)     // may fail on cancel; that's fine
+    a := loadAttempt(r.PathValue("txn"))        // amount comes from YOUR records
+
+    tx, err := provider.Lookup(r.Context(), paynp.LookupRequest{
+        TxnID: a.TxnID, Amount: a.Amount, ProviderRef: a.Ref, Callback: cb,
+    })
+    switch {
+    case errors.Is(err, paynp.ErrAmountMismatch):
+        flagForReview(a)                        // never fulfil
+    case err != nil:
+        // provider unreachable: leave pending, the reconciler retries
+    case tx.Status == paynp.StatusSuccess:
+        fulfilOnce(a.OrderID, tx.ProviderRef)   // idempotent
+    case tx.Status.Final():
+        markFailed(a, tx.Status)
+    }
+    http.Redirect(w, r, "/orders/"+a.OrderID, http.StatusSeeOther)
+}</pre></div>
+          </li>
+          {{ if eq $p.Name "hamropay" }}
+            <li>
+              <h3>Receive the signed webhook</h3>
+              <p>
+                Register your endpoint in the UAT portal (Configuration → Webhook) and set <code>WebhookSecret</code>.
+                Hamro Pay's webhook is its only signed status source.
+              </p>
+              <!-- prettier-ignore -->
+              <div class="codebox"><div class="bar">webhook.go<button class="copy" type="button" data-copy>Copy</button></div><pre>func hamropayWebhook(w http.ResponseWriter, r *http.Request) {
+    body, _ := io.ReadAll(io.LimitReader(r.Body, 1&lt;&lt;20))
+    cb, err := hp.ParseWebhook(r.Header, body)   // hp is the *hamropay.Client
+    if err != nil {
+        http.Error(w, "invalid", http.StatusUnauthorized)
+        return
+    }
+    a := loadAttempt(cb.TxnID)
+    if cb.Status == paynp.StatusSuccess &amp;&amp; cb.Amount == a.Amount {
+        fulfilOnce(a.OrderID, cb.TxnID)
+    }
+    w.WriteHeader(http.StatusOK)
+}</pre></div>
+            </li>
+          {{ end }}
+          <li>
+            <h3>Reconcile pending payments</h3>
+            <p>
+              Users close the tab after
+              paying{{ if ne $p.Name "hamropay" }}&#32;and {{ $p.Label }} sends no webhook{{ end }}. Re-run Lookup on
+              attempts that are not
+              final.{{ if eq $p.Name "fonepay" }}
+                &#32;Fonepay's Lookup needs the callback UID, so attempts without a callback cannot be reconciled.
+              {{ end }}
+            </p>
+            <!-- prettier-ignore -->
+            <div class="codebox"><div class="bar">reconcile.go<button class="copy" type="button" data-copy>Copy</button></div><pre>for range time.Tick(time.Minute) {
+    for _, a := range pendingAttempts(olderThan(2 * time.Minute)) {
+        tx, err := provider.Lookup(ctx, paynp.LookupRequest{
+            TxnID: a.TxnID, Amount: a.Amount, ProviderRef: a.Ref,
+        })
+        if err == nil &amp;&amp; tx.Status == paynp.StatusSuccess {
+            fulfilOnce(a.OrderID, tx.ProviderRef)
+        } else if err == nil &amp;&amp; tx.Status.Final() {
+            markFailed(a, tx.Status)
+        }
+    }
+}</pre></div>
+          </li>
+        </ol>
+
+        <h2 id="notes">Notes</h2>
+        <ul class="notes">
+          {{ range $d.Notes }}<li>{{ . }}</li>{{ end }}
+        </ul>
+
+        {{ if $d.Links }}
+          <h2 id="links">Official docs</h2>
+          <div class="links">
+            {{ range $d.Links }}
+              <a class="btn" href="{{ .URL }}" rel="noopener" target="_blank">{{ .Label }} ↗</a>
+            {{ end }}
+          </div>
+        {{ end }}
+      </article>
+    </div>
+  </main>
+{{ end }}
