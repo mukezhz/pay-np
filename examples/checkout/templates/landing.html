@@ -16,7 +16,7 @@
   .shot-bar i { width:10px; height:10px; border-radius:50%; background:var(--line-2) }
   .shot-bar span { margin-left:10px; color:var(--faint); font-size:12px }
   .shot-grid { display:grid; grid-template-columns:1.15fr .85fr }
-  @media (max-width:760px) { .shot-grid { grid-template-columns:1fr } .shot-side { border-left:0 !important; border-top:1px solid var(--line) } }
+  @media (max-width:760px) { .shot-grid { grid-template-columns:minmax(0,1fr) } .shot-side { border-left:0 !important; border-top:1px solid var(--line) } }
   pre.code { margin:0; padding:20px; font-size:12.5px; line-height:1.7; color:var(--text-2); overflow:auto }
   .k { color:#c792ea } .t { color:#82aaff } .s { color:#c3e88d } .c { color:var(--faint) } .f { color:#ffcb6b }
   @media (prefers-color-scheme: light) { .k { color:#7c3aed } .t { color:#2563eb } .s { color:#15803d } .f { color:#b45309 } }
@@ -45,6 +45,8 @@
   .providers { margin-top:40px }
   .prow { display:grid; grid-template-columns:minmax(0,1.2fr) 120px 150px minmax(0,1.3fr) 110px; align-items:center; gap:12px; min-height:52px; padding:0 16px; border-bottom:1px solid var(--line); font-size:13px }
   .prow:last-child { border-bottom:0 }
+  a.prow:hover { background:var(--hover) }
+  a.prow:hover .who span:last-child { text-decoration:underline; text-underline-offset:3px }
   .prow.head { min-height:36px; color:var(--faint); font-size:12px; font-weight:500 }
   .prow .ready { display:inline-flex; align-items:center; gap:6px; color:var(--ok); font-weight:500 } .prow .ready::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor }
   .prow .needs { color:var(--faint) }
@@ -129,17 +131,17 @@ tx, err := p.<span class="f">Lookup</span>(ctx, paynp.<span class="t">LookupRequ
     <div class="wrap">
       <div class="kicker">Providers</div>
       <h2>Six gateways, one shape.</h2>
-      <p>eSewa and Khalti run against their public sandboxes out of the box. Hamro Pay has free self-service UAT keys; the rest need merchant credentials.</p>
+      <p>Click a provider for its setup guide and env status. eSewa and Khalti run against their public sandboxes out of the box. Hamro Pay has free self-service UAT keys; the rest need merchant credentials.</p>
       <div class="panel providers">
         <div class="prow head"><span>Provider</span><span class="hide-sm">Checkout</span><span class="hide-sm">Callback</span><span class="hide-sm">Status check</span><span>Here</span></div>
         {{range .Providers}}
-        <div class="prow">
+        <a class="prow" href="/providers/{{.Name}}">
           <span class="who"><span class="mono-badge sm" style="--c:{{css .Color}}" aria-hidden="true">{{.Mono}}</span><span>{{.Label}}</span></span>
           <span class="hide-sm muted">{{.Checkout}}</span>
           <span class="hide-sm muted">{{if .Signed}}Signed{{else}}Unsigned{{end}}</span>
           <span class="hide-sm muted">{{.Lookup}}</span>
-          <span>{{if .Enabled}}<span class="ready">Ready</span>{{else}}<span class="needs">Needs keys</span>{{end}}</span>
-        </div>
+          <span>{{if .Enabled}}<span class="ready">Ready</span>{{else}}<span class="needs">Needs keys →</span>{{end}}</span>
+        </a>
         {{end}}
       </div>
     </div>

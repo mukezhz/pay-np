@@ -5,7 +5,7 @@
   .crumbs a:hover { color:var(--text) }
   .crumbs b { color:var(--text); font-weight:500 }
   .detail { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:32px; margin-top:20px; align-items:start }
-  @media (max-width:860px) { .detail { grid-template-columns:1fr; gap:20px } .side { order:-1 } }
+  @media (max-width:860px) { .detail { grid-template-columns:minmax(0,1fr); gap:20px } .side { order:-1 } }
   h1 { margin:0; font-size:26px; letter-spacing:-.03em; font-weight:600; line-height:1.2 }
   .idline { margin-top:6px; color:var(--faint); font-size:13px }
   .callout { display:flex; gap:12px; margin-top:20px; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:var(--panel); font-size:13px; color:var(--text-2) }
@@ -80,7 +80,7 @@
             <div class="ev">
               <b>{{.Kind}}</b> {{if .Status}}→ {{title .Status}}{{else}}failed{{end}}<time datetime="{{.At.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.Format "15:04:05"}}</time>
               {{if .Detail}}{{if .Status}}
-              <details{{if eq .Kind "lookup"}} open{{end}}><summary>Raw response</summary><pre class="raw">{{.Detail}}</pre></details>
+              <details {{if eq .Kind "lookup"}}open{{end}}><summary>Raw response</summary><pre class="raw">{{.Detail}}</pre></details>
               {{else}}<div class="err">{{.Detail}}</div>{{end}}{{end}}
             </div>
           </li>

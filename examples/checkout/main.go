@@ -90,6 +90,7 @@ func main() {
 	mux.HandleFunc("/return/{provider}/{txn}", s.handleReturn)
 	mux.HandleFunc("/return/{provider}", s.handleReturn) // ConnectIPS: URL registered with NCHL, TXNID in query
 	mux.HandleFunc("POST /webhook/hamropay", s.hamropayWebhook)
+	mux.HandleFunc("GET /providers/{name}", s.providerDocs)
 	mux.HandleFunc("GET /attempts/{txn}", s.show)
 	mux.HandleFunc("POST /attempts/{txn}/lookup", s.recheck)
 
@@ -184,7 +185,7 @@ func (s *shop) catalog() []providerInfo {
 	return opts
 }
 
-func (s *shop) index(w http.ResponseWriter, _ *http.Request) {
+func (s *shop) index(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	list := make([]*attempt, 0, len(s.attempts))
 	for _, a := range s.attempts {
@@ -203,7 +204,11 @@ func (s *shop) index(w http.ResponseWriter, _ *http.Request) {
 		}
 		return 1
 	})
-	render(w, "checkout.html", map[string]any{"Title": "Checkout", "Page": "checkout", "Env": s.env, "Providers": opts, "Enabled": len(s.providers), "Total": len(catalog), "Attempts": list})
+	selected := paynp.ProviderName(r.URL.Query().Get("provider"))
+	if _, ok := s.providers[selected]; !ok && len(opts) > 0 && opts[0].Enabled {
+		selected = opts[0].Name
+	}
+	render(w, "checkout.html", map[string]any{"Selected": selected, "Title": "Checkout", "Page": "checkout", "Env": s.env, "Providers": opts, "Enabled": len(s.providers), "Total": len(catalog), "Attempts": list})
 }
 
 func (s *shop) pay(w http.ResponseWriter, r *http.Request) {

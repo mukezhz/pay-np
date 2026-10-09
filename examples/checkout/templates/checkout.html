@@ -8,7 +8,7 @@
   .title p { margin:0; color:var(--muted); font-size:13px; flex-basis:100% }
 
   .compose { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:16px; align-items:start }
-  @media (max-width:860px) { .compose { grid-template-columns:1fr } .compose .order { order:2 } }
+  @media (max-width:860px) { .compose { grid-template-columns:minmax(0,1fr) } .compose .order { order:2 } }
   .order { position:sticky; top:72px }
   @media (max-width:860px) { .order { position:static } }
 
@@ -42,6 +42,8 @@
   .method-meta { color:var(--muted); font-size:12px; margin-top:2px; overflow:hidden; text-overflow:ellipsis }
   .method.off .method-name { color:var(--muted) }
   .method .help { grid-column:2 / -1; margin-top:2px; font-size:12px; color:var(--faint) }
+  .method .help a, .creds a { color:var(--accent-hi) }
+  .method .help a:hover, .creds a:hover { text-decoration:underline }
   .method .help code { color:var(--text-2); background:var(--raise); border:1px solid var(--line); padding:0 5px; border-radius:4px; font-size:11px; word-break:break-all }
   .creds { grid-column:2 / -1; display:none; margin-top:6px; padding:8px 10px; border-radius:6px; background:var(--panel); border:1px solid var(--line); font-size:12px; color:var(--text-2) }
   .method:has(input:checked) .creds { display:block }
@@ -91,15 +93,15 @@
         {{range $i, $p := .Providers}}
         <li>
           <label class="method{{if not $p.Enabled}} off{{end}}">
-            <input type="radio" name="provider" value="{{$p.Name}}" data-label="{{$p.Label}}" data-key="{{$i}}" {{if not $p.Enabled}}disabled{{else if eq $i 0}}checked{{end}}>
+            <input type="radio" name="provider" value="{{$p.Name}}" data-label="{{$p.Label}}" data-key="{{$i}}" {{if not $p.Enabled}}disabled{{else if eq $p.Name $.Selected}}checked{{end}}>
             <span class="mono-badge{{if not $p.Enabled}} off{{end}}" style="--c:{{css $p.Color}}" aria-hidden="true">{{$p.Mono}}</span>
             <span>
               <span class="method-name">{{$p.Label}}{{if not $p.Enabled}} <span class="soon">Needs keys</span>{{end}}</span>
               <span class="method-meta">{{$p.Checkout}} · {{if $p.Signed}}signed{{else}}unsigned{{end}} callback · {{$p.Lookup}}</span>
             </span>
             <kbd aria-hidden="true">{{inc $i}}</kbd>
-            {{if $p.Enabled}}<span class="creds">Sandbox login — {{$p.Sandbox}}</span>
-            {{else}}<span class="help">Set <code>{{$p.Env}}</code> and restart.</span>{{end}}
+            {{if $p.Enabled}}<span class="creds">Sandbox login — {{$p.Sandbox}} · <a href="/providers/{{$p.Name}}">Integration guide</a></span>
+            {{else}}<span class="help">Missing keys — <a href="/providers/{{$p.Name}}">see setup guide →</a></span>{{end}}
           </label>
         </li>
         {{end}}

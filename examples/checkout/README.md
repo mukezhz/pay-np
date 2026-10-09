@@ -10,7 +10,9 @@ go run ./examples/checkout
 
 `/` is an overview of the SDK and provider readiness; `/checkout` is the test shop
 (keys `1`–`5` pick a provider, `⌘↵` pays); `/attempts/{txn}` shows status, flow and raw
-provider responses (`R` re-runs Lookup).
+provider responses (`R` re-runs Lookup); `/providers/{name}` is a per-provider guide —
+which env vars are set, built in or missing, plus copy-paste code to integrate it in your own
+Go app (setup, start, return + Lookup, webhook, reconcile).
 
 eSewa and Khalti work with no setup (their published sandbox merchants). Other providers
 are enabled by env vars. Attempts are kept in memory only.

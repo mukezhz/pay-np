@@ -103,6 +103,7 @@
     <nav class="nav-links" aria-label="Main">
       <a href="/" {{if eq .Page "home"}}aria-current="page"{{end}}>Overview</a>
       <a href="/checkout" {{if eq .Page "checkout"}}aria-current="page"{{end}}>Checkout</a>
+      <a href="/providers/esewa" {{if eq .Page "providers"}}aria-current="page"{{end}}>Providers</a>
     </nav>
     <span class="grow"></span>
     <span class="tag env {{.Env}} nav-hide">{{.Env}}</span>
@@ -114,4 +115,5 @@
 
 {{define "foot"}}
 <footer><div class="wrap"><span>pay-np · MIT</span><span class="grow"></span><a href="https://github.com/mukezhz/pay-np" rel="noopener">GitHub</a><span>Unofficial SDK — test in sandbox first.</span></div></footer>
-</body></html>{{end}}
+{{/* </body></html> are optional in HTML; omitted so each block stays balanced. */}}
+{{end}}

@@ -18,24 +18,29 @@ type providerInfo struct {
 	Signed   bool
 	Lookup   string
 	Sandbox  string
-	Env      string
 	Enabled  bool
 }
 
 var catalog = []providerInfo{
 	{Name: paynp.Esewa, Label: "eSewa", Mono: "e", Color: "#41a124", Checkout: "Form POST", Signed: true,
-		Lookup: "Status API by TxnID", Sandbox: "ID 9806800001 · Nepal@123 · token 123456", Env: "ESEWA_PRODUCT_CODE, ESEWA_SECRET_KEY"},
+		Lookup: "Status API by TxnID", Sandbox: "ID 9806800001 · Nepal@123 · token 123456"},
 	{Name: paynp.Khalti, Label: "Khalti", Mono: "K", Color: "#5c2d91", Checkout: "Redirect",
-		Lookup: "Lookup by pidx", Sandbox: "ID 9800000000 · MPIN 1111 · OTP 987654 · min Rs 10", Env: "KHALTI_SECRET_KEY"},
+		Lookup: "Lookup by pidx", Sandbox: "ID 9800000000 · MPIN 1111 · OTP 987654 · min Rs 10"},
 	{Name: paynp.ConnectIPS, Label: "ConnectIPS", Mono: "C", Color: "#1f5aa6", Checkout: "Form POST",
-		Lookup: "gettxndetail by TxnID", Sandbox: "UAT bank login from NCHL", Env: "CONNECTIPS_MERCHANT_ID, _APP_ID, _APP_NAME, _PASSWORD, _PFX_PATH"},
+		Lookup: "gettxndetail by TxnID", Sandbox: "UAT bank login from NCHL"},
 	{Name: paynp.Fonepay, Label: "Fonepay", Mono: "F", Color: "#d32f2f", Checkout: "Redirect", Signed: true,
-		Lookup: "Needs callback UID", Sandbox: "Dev merchant from Fonepay", Env: "FONEPAY_MERCHANT_CODE, FONEPAY_SECRET_KEY"},
+		Lookup: "Needs callback UID", Sandbox: "Dev merchant from Fonepay"},
 	{Name: paynp.HamroPay, Label: "Hamro Pay", Mono: "H", Color: "#c8102e", Checkout: "Form POST (session)",
-		Lookup: "Get Transaction + signed webhook", Sandbox: "Wallet 9841414141 · T-PIN 0000 · OTP 000000 = success, 111111 = pending, 222222 = failed",
-		Env: "HAMROPAY_MERCHANT_ID, _CLIENT_ID, _CLIENT_API_KEY, _CLIENT_SECRET (free UAT signup at pay-sandbox.hamropatro.com)"},
+		Lookup: "Get Transaction + signed webhook", Sandbox: "Wallet 9841414141 · T-PIN 0000 · OTP 000000 = success, 111111 = pending, 222222 = failed"},
 	{Name: paynp.IMEPay, Label: "IME Pay", Mono: "I", Color: "#e65100", Checkout: "Redirect (token)",
-		Lookup: "Confirm / Recheck by token", Sandbox: "Staging merchant from IME", Env: "IMEPAY_MERCHANT_CODE, _MODULE, _API_USER, _API_PASSWORD"},
+		Lookup: "Confirm / Recheck by token", Sandbox: "Staging merchant from IME"},
+}
+
+func (p providerInfo) Readiness() string {
+	if p.Enabled {
+		return "ready"
+	}
+	return "needs keys"
 }
 
 func infoFor(n paynp.ProviderName) providerInfo {
