@@ -35,10 +35,7 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-var pages = template.Must(template.New("").Funcs(template.FuncMap{
-	"rupees": func(p paynp.Paisa) string { return p.Rupees() },
-	"final":  func(s paynp.Status) bool { return s.Final() },
-}).ParseFS(templateFS, "templates/*.html"))
+var pages = template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html"))
 
 type attempt struct {
 	ID        string
@@ -85,7 +82,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", s.index)
+	mux.HandleFunc("GET /{$}", s.landing)
+	mux.HandleFunc("GET /checkout", s.index)
 	mux.HandleFunc("POST /pay", s.pay)
 	mux.HandleFunc("/return/{provider}/{txn}", s.handleReturn)
 	mux.HandleFunc("/return/{provider}", s.handleReturn) // ConnectIPS: URL registered with NCHL, TXNID in query
@@ -119,7 +117,11 @@ func (s *shop) configure(env paynp.Environment) error {
 			return err
 		}
 	}
-	if key := os.Getenv("KHALTI_SECRET_KEY"); key != "" {
+	key := os.Getenv("KHALTI_SECRET_KEY")
+	if key == "" && env == paynp.Sandbox {
+		key = khalti.SandboxSecretKey
+	}
+	if key != "" {
 		if err := add(khalti.New(khalti.Config{SecretKey: key, WebsiteURL: envOr("KHALTI_WEBSITE_URL", s.baseURL), Environment: env})); err != nil {
 			return err
 		}
@@ -155,6 +157,22 @@ func (s *shop) configure(env paynp.Environment) error {
 	return nil
 }
 
+func (s *shop) landing(w http.ResponseWriter, _ *http.Request) {
+	opts := s.catalog()
+	s.mu.Lock()
+	n := len(s.attempts)
+	s.mu.Unlock()
+	render(w, "landing.html", map[string]any{"Title": "Nepali payments in Go", "Page": "home", "Env": s.env, "Providers": opts, "Enabled": len(s.providers), "Total": len(catalog), "Attempts": n})
+}
+
+func (s *shop) catalog() []providerInfo {
+	opts := slices.Clone(catalog)
+	for i := range opts {
+		_, opts[i].Enabled = s.providers[opts[i].Name]
+	}
+	return opts
+}
+
 func (s *shop) index(w http.ResponseWriter, _ *http.Request) {
 	s.mu.Lock()
 	list := make([]*attempt, 0, len(s.attempts))
@@ -164,17 +182,17 @@ func (s *shop) index(w http.ResponseWriter, _ *http.Request) {
 	s.mu.Unlock()
 	slices.SortFunc(list, func(a, b *attempt) int { return b.CreatedAt.Compare(a.CreatedAt) })
 
-	all := []paynp.ProviderName{paynp.Esewa, paynp.Khalti, paynp.ConnectIPS, paynp.Fonepay, paynp.IMEPay}
-	type option struct {
-		Name    paynp.ProviderName
-		Enabled bool
-	}
-	opts := make([]option, len(all))
-	for i, n := range all {
-		_, ok := s.providers[n]
-		opts[i] = option{n, ok}
-	}
-	render(w, "index.html", map[string]any{"Env": s.env, "Providers": opts, "Attempts": list})
+	opts := s.catalog()
+	slices.SortStableFunc(opts, func(a, b providerInfo) int {
+		if a.Enabled == b.Enabled {
+			return 0
+		}
+		if a.Enabled {
+			return -1
+		}
+		return 1
+	})
+	render(w, "checkout.html", map[string]any{"Title": "Checkout", "Page": "checkout", "Env": s.env, "Providers": opts, "Enabled": len(s.providers), "Total": len(catalog), "Attempts": list})
 }
 
 func (s *shop) pay(w http.ResponseWriter, r *http.Request) {
@@ -279,7 +297,7 @@ func (s *shop) show(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	render(w, "attempt.html", a)
+	render(w, "attempt.html", map[string]any{"Title": a.ID, "Page": "checkout", "A": a, "Env": s.env})
 }
 
 func (s *shop) save(a *attempt) {

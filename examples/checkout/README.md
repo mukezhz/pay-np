@@ -8,13 +8,17 @@ go run ./examples/checkout
 # open http://localhost:8080
 ```
 
-eSewa works with no setup (public `EPAYTEST` merchant). Other providers are enabled
-by env vars. Attempts are kept in memory only.
+`/` is an overview of the SDK and provider readiness; `/checkout` is the test shop
+(keys `1`–`5` pick a provider, `⌘↵` pays); `/attempts/{txn}` shows status, flow and raw
+provider responses (`R` re-runs Lookup).
+
+eSewa and Khalti work with no setup (their published sandbox merchants). Other providers
+are enabled by env vars. Attempts are kept in memory only.
 
 | Provider | Env vars |
 |---|---|
 | eSewa | `ESEWA_PRODUCT_CODE`, `ESEWA_SECRET_KEY` (sandbox defaults built in), `ESEWA_STATUS_URL` (optional) |
-| Khalti | `KHALTI_SECRET_KEY` (test key from test-admin.khalti.com), `KHALTI_WEBSITE_URL` (defaults to `BASE_URL`) |
+| Khalti | `KHALTI_SECRET_KEY` (sandbox default built in), `KHALTI_WEBSITE_URL` (defaults to `BASE_URL`) |
 | ConnectIPS | `CONNECTIPS_MERCHANT_ID`, `CONNECTIPS_APP_ID`, `CONNECTIPS_APP_NAME`, `CONNECTIPS_PASSWORD`, `CONNECTIPS_USERNAME` (optional), `CONNECTIPS_PFX_PATH`, `CONNECTIPS_PFX_PASSWORD`, `CONNECTIPS_HOST` (optional) |
 | Fonepay | `FONEPAY_MERCHANT_CODE`, `FONEPAY_SECRET_KEY` |
 | IME Pay | `IMEPAY_MERCHANT_CODE`, `IMEPAY_MODULE`, `IMEPAY_API_USER`, `IMEPAY_API_PASSWORD` |

@@ -1,41 +1,126 @@
-{{define "attempt.html"}}{{template "head" .ID}}
-<section class="card">
-  <h2>{{.ID}} <span class="status {{.Status}}">{{.Status}}</span></h2>
-  <dl>
-    <dt>Provider</dt>
-    <dd>{{.Provider}}</dd>
-    <dt>Amount</dt>
-    <dd>Rs {{rupees .Amount}}</dd>
-    <dt>Description</dt>
-    <dd>{{or .Desc "—"}}</dd>
-    <dt>Provider ref</dt>
-    <dd>{{or .Ref "—"}}</dd>
-    <dt>Created</dt>
-    <dd>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</dd>
-  </dl>
-  <form method="post" action="/attempts/{{.ID}}/lookup" style="margin-top: 16px">
-    <button class="primary" type="submit">
-      {{if final .Status}}Look up again{{else}}Check status (Lookup){{end}}
-    </button>
-    <a href="/" style="margin-left: 12px">New payment</a>
-  </form>
-  <p class="hint">
-    Only Lookup is authoritative. The callback status is a hint; unsigned callbacks never claim
-    SUCCESS.
-  </p>
-</section>
+{{define "attempt.html"}}{{$a := .A}}{{$p := info $a.Provider}}{{template "head" .}}
+<style>
+  .page { padding-top:28px }
+  .crumbs { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; min-width:0 }
+  .crumbs a:hover { color:var(--text) }
+  .crumbs b { color:var(--text); font-weight:500 }
+  .detail { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:32px; margin-top:20px; align-items:start }
+  @media (max-width:860px) { .detail { grid-template-columns:1fr; gap:20px } .side { order:-1 } }
+  h1 { margin:0; font-size:26px; letter-spacing:-.03em; font-weight:600; line-height:1.2 }
+  .idline { margin-top:6px; color:var(--faint); font-size:13px }
+  .callout { display:flex; gap:12px; margin-top:20px; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:var(--panel); font-size:13px; color:var(--text-2) }
+  .callout .st { padding-top:1px }
 
-<section class="card">
-  <h2>Timeline</h2>
-  {{range .Events}}
-  <div class="event">
-    <strong>{{.Kind}}</strong>
-    {{if .Status}}<span class="status {{.Status}}">{{.Status}}</span>{{end}}
-    <span class="muted">{{.At.Format "15:04:05"}}</span>
-    {{if .Detail}}
-    <pre>{{.Detail}}</pre>
-    {{end}}
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); margin-top:24px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--panel) }
+  .steps > div { padding:12px 14px; display:grid; grid-template-columns:auto 1fr; column-gap:10px; align-items:center }
+  .steps > div + div { border-left:1px solid var(--line) }
+  @media (max-width:560px) { .steps { grid-template-columns:1fr } .steps > div + div { border-left:0; border-top:1px solid var(--line) } }
+  .sdot { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font-size:10px; font-weight:700; border:1.5px solid var(--line-2); color:var(--faint) }
+  .done .sdot { background:var(--ok); border-color:var(--ok); color:var(--panel) }
+  .error .sdot { background:var(--bad); border-color:var(--bad); color:var(--panel) }
+  .waiting .sdot { border:1.5px dashed var(--wait); color:var(--wait) }
+  .steps strong { font-size:13px; font-weight:500 }
+  .steps span.small { grid-column:2; color:var(--muted) }
+
+  .activity { margin-top:36px }
+  .activity h2 { font-size:14px; font-weight:500; margin:0 0 14px }
+  .feed { list-style:none; margin:0; padding:0; position:relative }
+  .feed::before { content:""; position:absolute; left:9px; top:8px; bottom:8px; width:1px; background:var(--line) }
+  .feed > li { position:relative; display:grid; grid-template-columns:20px 1fr; gap:12px; padding-bottom:18px }
+  .feed .node { position:relative; z-index:1; width:20px; height:20px; border-radius:50%; background:var(--bg); display:grid; place-items:center }
+  .feed .node .st i { width:12px; height:12px }
+  .ev { font-size:13px; color:var(--text-2); padding-top:1px }
+  .ev b { color:var(--text); font-weight:500; text-transform:capitalize }
+  .ev time { color:var(--faint); margin-left:6px }
+  .ev details { margin-top:8px }
+  .ev summary { cursor:pointer; color:var(--muted); font-size:12px; width:max-content }
+  .ev summary:hover { color:var(--text) }
+  pre.raw { margin:8px 0 0; padding:12px 14px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--text-2); font-size:12px; line-height:1.6; overflow:auto; white-space:pre-wrap; word-break:break-all; max-height:340px }
+  .ev .err { margin-top:6px; padding:8px 10px; border-radius:8px; border:1px solid color-mix(in srgb,var(--bad) 35%,transparent); background:color-mix(in srgb,var(--bad) 8%,transparent); color:var(--text-2); font-size:12px }
+
+  .side { position:sticky; top:72px }
+  @media (max-width:860px) { .side { position:static } }
+  .props { padding:6px 0 }
+  .prop { display:grid; grid-template-columns:92px minmax(0,1fr); gap:8px; align-items:center; min-height:34px; padding:0 14px; font-size:13px }
+  .prop dt { color:var(--muted) } .prop dd { margin:0; display:flex; align-items:center; gap:6px; min-width:0 }
+  .prop dd .mono { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .copy { margin-left:auto; height:22px; padding:0 6px; border-radius:5px; border:0; background:transparent; color:var(--faint); font:500 11px Inter,system-ui,sans-serif; cursor:pointer }
+  .copy:hover { color:var(--text); background:var(--hover) }
+  .side-actions { display:grid; gap:8px; padding:12px 14px; border-top:1px solid var(--line) }
+  .side-actions form { display:contents }
+  .side-actions .btn { width:100% }
+</style>
+
+<main class="wrap page">
+  <div class="crumbs"><a href="/checkout">Checkout</a><span class="faint">/</span><b class="mono">{{$a.ID}}</b></div>
+
+  <div class="detail">
+    <article>
+      <h1>{{or $a.Desc "Untitled payment"}}</h1>
+      <div class="idline">Rs {{rupees $a.Amount}} via {{$p.Label}} · created {{ago $a.CreatedAt}}</div>
+
+      {{with explain $a.Status}}<div class="callout" role="status"><span class="st {{$a.Status}}"><i></i></span><span><b style="color:var(--text);font-weight:500">{{title $a.Status}}.</b> {{.}}</span></div>{{end}}
+
+      <div class="steps" aria-label="Payment flow">
+        {{range $i, $s := steps $a}}
+        <div class="{{$s.State}}">
+          <span class="sdot">{{if eq $s.State "done"}}✓{{else if eq $s.State "error"}}!{{else}}{{inc $i}}{{end}}</span>
+          <strong>{{$s.Title}}</strong>
+          <span class="small">{{if eq $s.State "waiting"}}Waiting for the user to return{{else}}{{$s.Note}}{{end}}</span>
+        </div>
+        {{end}}
+      </div>
+
+      <section class="activity" aria-labelledby="act-h">
+        <h2 id="act-h">Activity</h2>
+        <ol class="feed">
+          {{range $a.Events}}
+          <li>
+            <span class="node"><span class="st {{or .Status "FAILED"}}"><i></i></span></span>
+            <div class="ev">
+              <b>{{.Kind}}</b> {{if .Status}}→ {{title .Status}}{{else}}failed{{end}}<time datetime="{{.At.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.Format "15:04:05"}}</time>
+              {{if .Detail}}{{if .Status}}
+              <details{{if eq .Kind "lookup"}} open{{end}}><summary>Raw response</summary><pre class="raw">{{.Detail}}</pre></details>
+              {{else}}<div class="err">{{.Detail}}</div>{{end}}{{end}}
+            </div>
+          </li>
+          {{end}}
+        </ol>
+      </section>
+    </article>
+
+    <aside class="side panel" aria-label="Properties">
+      <dl class="props">
+        <div class="prop"><dt>Status</dt><dd><span class="st {{$a.Status}}"><i></i>{{title $a.Status}}</span></dd></div>
+        <div class="prop"><dt>Provider</dt><dd><span class="mono-badge sm" style="--c:{{css $p.Color}}" aria-hidden="true">{{$p.Mono}}</span>{{$p.Label}}</dd></div>
+        <div class="prop"><dt>Amount</dt><dd style="font-variant-numeric:tabular-nums">Rs {{rupees $a.Amount}}</dd></div>
+        <div class="prop"><dt>Transaction</dt><dd><span class="mono" id="txn">{{$a.ID}}</span><button class="copy" type="button" data-copy="txn">Copy</button></dd></div>
+        <div class="prop"><dt>Provider ref</dt><dd>{{if $a.Ref}}<span class="mono" id="ref">{{$a.Ref}}</span><button class="copy" type="button" data-copy="ref">Copy</button>{{else}}<span class="faint">—</span>{{end}}</dd></div>
+        <div class="prop"><dt>Created</dt><dd>{{$a.CreatedAt.Format "Jan 2, 15:04:05"}}</dd></div>
+      </dl>
+      <div class="side-actions">
+        <form method="post" action="/attempts/{{$a.ID}}/lookup"><button class="btn primary" type="submit">{{if final $a.Status}}Look up again{{else}}Check status{{end}} <kbd>R</kbd></button></form>
+        {{if ne $a.Status "SUCCESS"}}
+        <form method="post" action="/pay">
+          <input type="hidden" name="provider" value="{{$a.Provider}}">
+          <input type="hidden" name="amount" value="{{rupees $a.Amount}}">
+          <input type="hidden" name="description" value="{{$a.Desc}}">
+          <button class="btn" type="submit">Pay again</button>
+        </form>
+        {{end}}
+      </div>
+    </aside>
   </div>
-  {{end}}
-</section>
-{{template "foot"}}{{end}}
+</main>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent); b.textContent = 'Copied'; }
+    catch { b.textContent = 'Failed'; }
+    setTimeout(() => (b.textContent = 'Copy'), 1400);
+  }));
+  addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) document.querySelector('.side-actions form').requestSubmit();
+  });
+</script>
+{{template "foot" .}}{{end}}
