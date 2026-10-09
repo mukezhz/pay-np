@@ -49,6 +49,7 @@ type Provider interface {
   signs one. **Its status is a hint.**
 - `Lookup` asks the provider server-to-server. **Only trust `Lookup`.** It returns
   `ErrAmountMismatch` if a successful payment's amount differs from what you expected.
+  Network/context timeouts wrap `ErrTimeout`; non-2xx responses are `*APIError`.
 
 Statuses: `PENDING`, `SUCCESS`, `FAILED`, `CANCELED`, `EXPIRED`, `NOT_FOUND`, `REFUNDED`,
 `PARTIALLY_REFUNDED`. `Status.Final()` tells you when to stop polling.
@@ -105,13 +106,17 @@ tab after paying, and none of these providers sends webhooks.
   (`pidx`); `Lookup` needs it. Minimum amount is set by Khalti.
 - **ConnectIPS** — success/failure URLs are registered with NCHL, so `SuccessURL`/`FailureURL`
   are ignored; NCHL appends `?TXNID=`. TxnID ≤ 20 chars. Load the key with
-  `connectips.ParsePFX(bytes, password)` (store the .pfx encrypted). `Username` defaults to
+  `connectips.ParsePFX(bytes, password)` (store the .pfx encrypted) or `connectips.ParsePEM(bytes)`
+  for PKCS#1/PKCS#8 PEM or DER. `Username` defaults to
   `AppID`. NCHL documents no hosts: defaults are `uat.connectips.com` /
   `login.connectips.com`, override with `Host`. NCHL's docs disagree on whether
   `gettxndetail.txnAmt` is paisa; the SDK assumes paisa — confirm in UAT.
 - **Fonepay** — one return URL (`SuccessURL`), PRN (TxnID) 3–25 chars. The verification API is
   keyed by the `UID` Fonepay returns on redirect, so `Lookup` needs `req.Callback` and returns
   `ErrCallbackRequired` without it: abandoned payments cannot be reconciled by this flow.
+  In-person: `GenerateQR(ctx, req)` returns a dynamic QR (`QR.Message`, render with any QR
+  encoder) and `QRStatus(ctx, LookupRequest{TxnID, Amount})` polls it — both need the
+  merchant-portal `Username`/`Password`; no public spec, verify in dev.
 - **Hamro Pay** — free self-service UAT keys at pay-sandbox.hamropatro.com. Amount Rs 10–50,000,
   TxnID ≤ 25 chars without commas. Both redirects only append `?MerchantTxnId=` (unsigned).
   `ParseWebhook(header, body)` verifies the signed webhook with `WebhookSecret` — the only

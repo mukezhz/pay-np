@@ -12,6 +12,7 @@ var (
 	ErrInvalidSignature = errors.New("paynp: invalid signature")
 	ErrAmountMismatch   = errors.New("paynp: amount mismatch")
 	ErrCallbackRequired = errors.New("paynp: lookup needs the provider callback")
+	ErrTimeout          = errors.New("paynp: provider timed out")
 )
 
 type APIError struct {

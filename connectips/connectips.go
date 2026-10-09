@@ -7,8 +7,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"net/http"
@@ -29,20 +31,6 @@ var hosts = map[paynp.Environment]string{
 
 // nepalTime avoids depending on the host's tzdata; Nepal has no DST.
 var nepalTime = time.FixedZone("NPT", 5*3600+45*60)
-
-type Config struct {
-	MerchantID string
-	AppID      string
-	AppName    string
-	// Username defaults to AppID.
-	Username    string
-	Password    string
-	PrivateKey  *rsa.PrivateKey
-	Environment paynp.Environment
-	Host        string
-	HTTPClient  *http.Client
-	Now         func() time.Time
-}
 
 type Client struct {
 	cfg        Config
@@ -84,6 +72,25 @@ func ParsePFX(data []byte, password string) (*rsa.PrivateKey, error) {
 	rsaKey, ok := key.(*rsa.PrivateKey)
 	if !ok {
 		return nil, fmt.Errorf("%w: connectips pfx key is not RSA", paynp.ErrInvalidConfig)
+	}
+	return rsaKey, nil
+}
+
+// ParsePEM accepts a PEM or raw DER key in PKCS#8 or PKCS#1 form.
+func ParsePEM(data []byte) (*rsa.PrivateKey, error) {
+	if block, _ := pem.Decode(data); block != nil {
+		data = block.Bytes
+	}
+	if key, err := x509.ParsePKCS1PrivateKey(data); err == nil {
+		return key, nil
+	}
+	key, err := x509.ParsePKCS8PrivateKey(data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: connectips key is not PKCS#1 or PKCS#8: %v", paynp.ErrInvalidConfig, err)
+	}
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("%w: connectips key is not RSA", paynp.ErrInvalidConfig)
 	}
 	return rsaKey, nil
 }
@@ -139,22 +146,6 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 		return nil, fmt.Errorf("%w: connectips TXNID missing", paynp.ErrInvalidCallback)
 	}
 	return &paynp.Callback{TxnID: id, Status: paynp.StatusPending, Values: query}, nil
-}
-
-type txnRequest struct {
-	MerchantID  int64  `json:"merchantId"`
-	AppID       string `json:"appId"`
-	ReferenceID string `json:"referenceId"`
-	TxnAmt      int64  `json:"txnAmt"`
-	Token       string `json:"token"`
-}
-
-type txnDetail struct {
-	Status      string  `json:"status"`
-	StatusDesc  string  `json:"statusDesc"`
-	ReferenceID string  `json:"referenceId"`
-	TxnAmt      float64 `json:"txnAmt"`
-	TxnID       int64   `json:"txnId"`
 }
 
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {

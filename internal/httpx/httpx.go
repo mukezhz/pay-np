@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -58,6 +61,10 @@ func Do(ctx context.Context, c *http.Client, p paynp.ProviderName, req Request) 
 
 	resp, err := c.Do(hr)
 	if err != nil {
+		var ne net.Error
+		if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
+			return 0, nil, fmt.Errorf("%w: %s: %v", paynp.ErrTimeout, p, err)
+		}
 		return 0, nil, err
 	}
 	defer resp.Body.Close()

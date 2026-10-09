@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -87,5 +88,42 @@ func TestLookup(t *testing.T) {
 	}
 	if _, err := c.Lookup(context.Background(), paynp.LookupRequest{TxnID: "ord-1", Amount: 150000}); !errors.Is(err, paynp.ErrCallbackRequired) {
 		t.Fatalf("want ErrCallbackRequired, got %v", err)
+	}
+}
+
+func TestQR(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b map[string]string
+		_ = json.NewDecoder(r.Body).Decode(&b)
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/thirdPartyDynamicQrDownload"):
+			if b["dataValidation"] != hmac512("1500.00", "ord-1", "NBQM", "Fee", "N/A") || b["username"] != "u" {
+				http.Error(w, "bad dv", 400)
+				return
+			}
+			w.Write([]byte(`{"success":true,"qrMessage":"000201...","thirdpartyQrWebSocketUrl":"wss://x"}`))
+		case strings.HasSuffix(r.URL.Path, "/thirdPartyDynamicQrGetStatus"):
+			if b["dataValidation"] != hmac512("ord-1", "NBQM") {
+				http.Error(w, "bad dv", 400)
+				return
+			}
+			w.Write([]byte(`{"paymentStatus":"success","fonepayTraceId":123}`))
+		}
+	}))
+	defer srv.Close()
+	c, err := fonepay.New(fonepay.Config{MerchantCode: "NBQM", SecretKey: secret, Username: "u", Password: "p", Host: "https://f", QRHost: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	qr, err := c.GenerateQR(context.Background(), paynp.InitiateRequest{TxnID: "ord-1", Amount: 150000, Description: "Fee"})
+	if err != nil || qr.Message != "000201..." || qr.WebSocketURL != "wss://x" {
+		t.Fatalf("unexpected %+v %v", qr, err)
+	}
+	tx, err := c.QRStatus(context.Background(), paynp.LookupRequest{TxnID: "ord-1", Amount: 150000})
+	if err != nil || tx.Status != paynp.StatusSuccess || tx.Amount != 150000 || tx.ProviderRef != "123" {
+		t.Fatalf("unexpected %+v %v", tx, err)
+	}
+	if _, err := client(t, "https://f").GenerateQR(context.Background(), paynp.InitiateRequest{TxnID: "x", Amount: 1}); !errors.Is(err, paynp.ErrInvalidConfig) {
+		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }

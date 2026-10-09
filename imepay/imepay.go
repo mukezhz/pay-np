@@ -20,16 +20,6 @@ var hosts = map[paynp.Environment]string{
 	paynp.Production: "https://payment.imepay.com.np:7979",
 }
 
-type Config struct {
-	MerchantCode string
-	Module       string
-	APIUser      string
-	APIPassword  string
-	Environment  paynp.Environment
-	Host         string
-	HTTPClient   *http.Client
-}
-
 type Client struct {
 	cfg    Config
 	header http.Header
@@ -58,16 +48,6 @@ func New(cfg Config) (*Client, error) {
 }
 
 func (c *Client) Name() paynp.ProviderName { return paynp.IMEPay }
-
-type apiResponse struct {
-	ResponseCode        json.RawMessage `json:"ResponseCode"`
-	ResponseDescription string          `json:"ResponseDescription"`
-	TokenID             json.RawMessage `json:"TokenId"`
-	RefID               json.RawMessage `json:"RefId"`
-	TransactionID       json.RawMessage `json:"TransactionId"`
-	Amount              json.RawMessage `json:"Amount"`
-	TranAmount          json.RawMessage `json:"TranAmount"`
-}
 
 func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
