@@ -19,7 +19,6 @@ import (
 	"github.com/mukezhz/pay-np/internal/httpx"
 )
 
-// Sandbox merchant published by eSewa.
 const (
 	SandboxProductCode = "EPAYTEST"
 	SandboxSecretKey   = "8gBm/:&EnhH.1/q"
@@ -42,10 +41,9 @@ type Config struct {
 	ProductCode string
 	SecretKey   string
 	Environment paynp.Environment
-	// FormURL and StatusURL override the environment defaults (tests, proxies).
-	FormURL    string
-	StatusURL  string
-	HTTPClient *http.Client
+	FormURL     string
+	StatusURL   string
+	HTTPClient  *http.Client
 }
 
 type Client struct {
@@ -102,8 +100,7 @@ func (c *Client) Initiate(_ context.Context, req paynp.InitiateRequest) (*paynp.
 	return &paynp.Checkout{Provider: paynp.Esewa, Method: http.MethodPost, URL: c.cfg.FormURL, Fields: fields}, nil
 }
 
-// ParseCallback verifies the base64 `data` eSewa appends to success_url.
-// eSewa's failure redirect carries no signed data; put your TxnID in FailureURL.
+// The failure redirect carries no signed data; keep the TxnID in FailureURL.
 func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	raw, err := base64.StdEncoding.DecodeString(query.Get("data"))
 	if err != nil || len(raw) == 0 {
@@ -142,7 +139,7 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	}, nil
 }
 
-// statusResponse accepts both the v2 snake_case and the older camelCase shape.
+// eSewa returns either snake_case (v2) or camelCase fields.
 type statusResponse struct {
 	TotalAmount    json.Number `json:"total_amount"`
 	TotalAmountOld json.Number `json:"totalAmount"`
@@ -200,7 +197,6 @@ func (c *Client) sign(fields map[string]string, names string) (string, error) {
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
-// formatAmount writes whole rupees without decimals, matching eSewa's examples.
 func formatAmount(p paynp.Paisa) string {
 	if p%100 == 0 {
 		return strconv.FormatInt(int64(p/100), 10)
@@ -225,8 +221,7 @@ func mapStatus(s string) paynp.Status {
 	}
 }
 
-// decodeFlat keeps numbers verbatim ("133.0" stays "133.0") because eSewa signs
-// the exact text it sent.
+// Numbers stay verbatim because eSewa signs the exact text it sent.
 func decodeFlat(b []byte) (map[string]string, error) {
 	var m map[string]any
 	if err := decodeJSON(b, &m); err != nil {

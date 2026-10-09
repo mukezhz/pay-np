@@ -8,6 +8,32 @@ go run ./examples/checkout
 # open http://localhost:8080
 ```
 
+Or with Docker:
+
+```bash
+docker run --rm -p 8080:8080 mukezhz/pay-np:latest   # published image
+make docker-run                                       # build locally; reads .env if present
+```
+
+## Mobile apps
+
+Every provider works from an Android/iOS/Flutter app through the server:
+
+```bash
+curl -X POST localhost:8080/api/payments -d '{"provider":"khalti","amount":"10","app_return_url":"paynp://done"}'
+# {"txn_id":"np-…","status":"PENDING","provider_ref":"<pidx>","checkout_url":"http://localhost:8080/pay/np-…"}
+```
+
+1. Open `checkout_url` in Custom Tabs / ASWebAuthenticationSession (or hand `provider_ref`
+   to Khalti's native SDK).
+2. The provider returns to the server, which runs Lookup and redirects to
+   `paynp://done?txn_id=…&status=…`. Only schemes in `APP_RETURN_SCHEMES` (default `paynp`)
+   are accepted.
+3. Confirm with `GET /api/payments/{txn_id}` before fulfilling.
+
+eSewa's native SDK pays without the server; verify its refId with
+`POST /api/esewa/mobile-verify` (`product_id`, `ref_id`, `amount`).
+
 `/` is an overview of the SDK and provider readiness; `/checkout` is the test shop
 (keys `1`–`5` pick a provider, `⌘↵` pays); `/attempts/{txn}` shows status, flow and raw
 provider responses (`R` re-runs Lookup); `/providers/{name}` is a per-provider guide —
@@ -28,7 +54,7 @@ are enabled by env vars. Attempts are kept in memory only.
 | Fonepay | `FONEPAY_MERCHANT_CODE`, `FONEPAY_SECRET_KEY` |
 | Hamro Pay | `HAMROPAY_MERCHANT_ID`, `HAMROPAY_CLIENT_ID`, `HAMROPAY_CLIENT_API_KEY`, `HAMROPAY_CLIENT_SECRET`, `HAMROPAY_WEBHOOK_SECRET` (optional), `HAMROPAY_API_BASE_URL`/`HAMROPAY_GATEWAY_URL` (production) |
 | IME Pay | `IMEPAY_MERCHANT_CODE`, `IMEPAY_MODULE`, `IMEPAY_API_USER`, `IMEPAY_API_PASSWORD` |
-| Server | `ADDR` (`:8080`), `BASE_URL` (`http://localhost:8080`), `PAYNP_ENV` (`sandbox` \| `production`) |
+| Server | `ADDR` (`:8080`), `BASE_URL` (`http://localhost:8080`), `PAYNP_ENV` (`sandbox` \| `production`), `APP_RETURN_SCHEMES` (`paynp`) |
 
 Return URLs are `{BASE_URL}/return/{provider}/{txn}`. ConnectIPS uses the URLs registered
 with NCHL instead: register `{BASE_URL}/return/connectips` as both success and failure URL.

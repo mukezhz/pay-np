@@ -1,6 +1,4 @@
 // Package hamropay implements paynp.Provider for Hamro Pay Checkout.
-//
-// Spec: https://hamropay.com.np/checkout/developer/reference/
 package hamropay
 
 import (
@@ -21,26 +19,23 @@ import (
 	"github.com/mukezhz/pay-np/internal/httpx"
 )
 
-// UAT endpoints. Production URLs are issued with live onboarding, so a
-// Production config must set APIBaseURL and GatewayURL.
+// Production URLs come with live onboarding, so Production needs them set explicitly.
 const (
 	SandboxAPIBaseURL = "https://uat-payclient.hamropatro.com"
 	SandboxGatewayURL = "https://uat-checkout-pay.hamropatro.com"
 )
 
 const (
-	MinAmount paynp.Paisa = 1000
-	MaxAmount paynp.Paisa = 5_000_000
-	// sessionTTL is Hamro Pay's documented session lifetime.
-	sessionTTL = 10 * time.Minute
+	MinAmount  paynp.Paisa = 1000
+	MaxAmount  paynp.Paisa = 5_000_000
+	sessionTTL             = 10 * time.Minute
 )
 
 type Config struct {
-	MerchantID   string
-	ClientID     string
-	ClientAPIKey string
-	ClientSecret string
-	// WebhookSecret (merchantWebHookSigningSecret) is only needed for ParseWebhook.
+	MerchantID    string
+	ClientID      string
+	ClientAPIKey  string
+	ClientSecret  string
 	WebhookSecret string
 	Environment   paynp.Environment
 	APIBaseURL    string
@@ -95,7 +90,6 @@ type sessionRequest struct {
 	PhoneNumber       string    `json:"phone_number,omitempty"`
 }
 
-// Initiate creates a checkout session and returns the signed gateway form.
 func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -150,7 +144,6 @@ func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*payn
 	}, nil
 }
 
-// ParseCallback reads the unsigned ?MerchantTxnId= on both redirect URLs; always Lookup.
 func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	id := query.Get("MerchantTxnId")
 	if id == "" {
@@ -200,9 +193,7 @@ type webhook struct {
 	Metadata      map[string]string `json:"metadata"`
 }
 
-// ParseWebhook verifies a Hamro Pay webhook (Signature header) with
-// WebhookSecret. A verified webhook is signed, so its status is authoritative,
-// but check Amount against your records before fulfilling.
+// ParseWebhook verifies the Signature header with WebhookSecret; still match Amount.
 func (c *Client) ParseWebhook(header http.Header, body []byte) (*paynp.Callback, error) {
 	if c.cfg.WebhookSecret == "" {
 		return nil, fmt.Errorf("%w: hamropay WebhookSecret not set", paynp.ErrInvalidConfig)
@@ -265,7 +256,6 @@ func mapStatus(s string) paynp.Status {
 	}
 }
 
-// sign is base64 HMAC-SHA512 over the comma-joined values.
 func sign(secret string, values ...string) string {
 	mac := hmac.New(sha512.New, []byte(secret))
 	mac.Write([]byte(strings.Join(values, ",")))

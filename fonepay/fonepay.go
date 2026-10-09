@@ -1,7 +1,4 @@
-// Package fonepay implements paynp.Provider for the Fonepay web redirect flow.
-//
-// Fonepay publishes no public spec; field order and hosts are cross-checked
-// against several independent integrations. Verify in Fonepay's dev environment.
+// Package fonepay implements paynp.Provider for Fonepay web redirect (no public spec; verify in dev).
 package fonepay
 
 import (
@@ -62,7 +59,6 @@ func New(cfg Config) (*Client, error) {
 
 func (c *Client) Name() paynp.ProviderName { return paynp.Fonepay }
 
-// Initiate builds the signed redirect. Fonepay has one return URL (SuccessURL).
 func (c *Client) Initiate(_ context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -97,7 +93,6 @@ func (c *Client) Initiate(_ context.Context, req paynp.InitiateRequest) (*paynp.
 	}, nil
 }
 
-// ParseCallback verifies the DV Fonepay signs over its return query.
 func (c *Client) ParseCallback(q url.Values) (*paynp.Callback, error) {
 	if q.Get("PRN") == "" || q.Get("DV") == "" {
 		return nil, fmt.Errorf("%w: fonepay PRN/DV missing", paynp.ErrInvalidCallback)
@@ -124,8 +119,7 @@ type verifyResponse struct {
 	TxnAmount    string `xml:"txnAmount"`
 }
 
-// Lookup calls verificationMerchant, which is keyed by the UID Fonepay returns
-// on redirect: it needs req.Callback and cannot reconcile abandoned payments.
+// Lookup needs req.Callback: verification is keyed by the UID from the redirect.
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {
 	if req.Callback == nil || req.Callback.ProviderRef == "" {
 		return nil, paynp.ErrCallbackRequired
@@ -153,11 +147,10 @@ func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Tr
 	if err := xml.Unmarshal(raw, &r); err != nil {
 		return nil, fmt.Errorf("fonepay: decode verification: %w", err)
 	}
-	// Decline codes are undocumented: anything but an explicit success stays PENDING (not final).
+	// Decline codes are undocumented, so only an explicit success leaves PENDING.
 	tx := &paynp.Transaction{Provider: paynp.Fonepay, TxnID: req.TxnID, ProviderRef: uid, Status: paynp.StatusPending, Raw: raw}
 	if r.Success && strings.EqualFold(r.ResponseCode, "successful") {
 		tx.Status = paynp.StatusSuccess
-		// Verification is signed over our AMT, so Fonepay already matched it; txnAmount is a second check.
 		tx.Amount = req.Amount
 		if r.TxnAmount != "" {
 			if tx.Amount, err = paynp.ParseRupees(r.TxnAmount); err != nil {
@@ -168,7 +161,6 @@ func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Tr
 	return paynp.MatchAmount(tx, req.Amount)
 }
 
-// sign is lower-hex HMAC-SHA512 over the comma-joined values.
 func (c *Client) sign(values ...string) string {
 	mac := hmac.New(sha512.New, []byte(c.cfg.SecretKey))
 	mac.Write([]byte(strings.Join(values, ",")))

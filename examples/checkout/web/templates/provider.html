@@ -223,6 +223,47 @@ var provider paynp.Provider = p</pre></div>
           </li>
         </ol>
 
+        <h2 id="mobile">Mobile apps (Android, iOS, Flutter)</h2>
+        <p>
+          Apps go through your backend: create the payment, open the checkout in an in-app browser, and let the provider
+          return to your server, which runs Lookup and redirects to the app.
+        </p>
+        <p class="mobile-note">{{ $d.MobileNote }}</p>
+        <!-- prettier-ignore -->
+        <div class="codebox"><div class="bar">app ↔ backend<button class="copy" type="button" data-copy>Copy</button></div><pre>POST {{.BaseURL}}/api/payments
+{"provider": "{{ $p.Name }}", "amount": "100.00", "app_return_url": "paynp://payment-done"}
+
+→ 201 {"txn_id": "np-…", "status": "PENDING", "provider_ref": "…",
+       "checkout_url": "{{ .BaseURL }}/pay/np-…"}
+
+1. Open checkout_url in Custom Tabs / ASWebAuthenticationSession.
+2. The provider returns to {{ .BaseURL }}/return/{{ $p.Name }}/np-…; the server runs Lookup
+   and redirects to paynp://payment-done?txn_id=np-…&amp;status=SUCCESS.
+3. Confirm before fulfilling: GET {{ .BaseURL }}/api/payments/np-…
+   → {"status": "SUCCESS", "final": true}</pre></div>
+
+        {{ if $d.MobileSDK }}
+          <h3 class="sub-h">{{ $p.Label }} native SDK</h3>
+          <p>
+            The SDK pays inside the app, so there is no Initiate. Verify the refId on your server before fulfilling.
+          </p>
+          <!-- prettier-ignore -->
+          <div class="codebox"><div class="bar">mobile.go<button class="copy" type="button" data-copy>Copy</button></div><pre>{{$d.MobileSDK}}</pre></div>
+          <form class="verify" id="mobile-verify" action="/api/esewa/mobile-verify" method="post">
+            <div class="verify-fields">
+              <label><span>Product ID</span><input name="product_id" required placeholder="ord-42" /></label>
+              <label><span>Ref ID</span><input name="ref_id" placeholder="0004VZR (optional)" /></label>
+              <label
+                ><span>Amount (Rs)</span><input name="amount" required inputmode="decimal" placeholder="25"
+              /></label>
+            </div>
+            <button class="btn primary" type="submit">Verify on eSewa</button>
+          </form>
+          <!-- prettier-ignore -->
+          <pre class="verify-out" id="mobile-verify-out" hidden></pre>
+        {{ end }}
+
+
         <h2 id="notes">Notes</h2>
         <ul class="notes">
           {{ range $d.Notes }}<li>{{ . }}</li>{{ end }}

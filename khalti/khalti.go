@@ -22,12 +22,10 @@ var baseURLs = map[paynp.Environment]string{
 
 const MinAmount paynp.Paisa = 1000
 
-// SandboxSecretKey is the dev.khalti.com key published in Khalti's docs.
 const SandboxSecretKey = "live_secret_key_68791341fdd94846a146f0457ff7b455"
 
 type Config struct {
-	SecretKey string
-	// WebsiteURL is the merchant site Khalti shows on its checkout page.
+	SecretKey   string
 	WebsiteURL  string
 	Environment paynp.Environment
 	BaseURL     string
@@ -78,8 +76,6 @@ type initiateResponse struct {
 	ExpiresAt  time.Time `json:"expires_at"`
 }
 
-// Initiate registers the payment with Khalti. Khalti has one return URL for all
-// outcomes, so FailureURL is unused.
 func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -124,7 +120,6 @@ func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*payn
 	}, nil
 }
 
-// ParseCallback reads Khalti's return query. It is unsigned: always Lookup.
 func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	pidx := query.Get("pidx")
 	if pidx == "" {
