@@ -136,6 +136,20 @@ Implement `paynp.Provider` in a new package, add `var _ paynp.Provider = (*Clien
 `internal/httpx` for calls (context, timeout, `APIError`), end `Lookup` with
 `paynp.MatchAmount`, and cover signing with a published test vector plus an `httptest` server.
 
+## Releases and Docker
+
+The example server is published as [`mukezhz/pay-np`](https://hub.docker.com/r/mukezhz/pay-np)
+(linux/amd64, linux/arm64):
+
+| Git ref | Image tag |
+|---|---|
+| tag `v1.2.3` | `v1.2.3` (plus a GitHub release with binaries) |
+| `main` | `latest` |
+| `develop` | `develop` |
+
+Cut a release with `make release VERSION=v1.2.3`. CI needs the repository secret
+`DOCKERHUB_TOKEN` (and `DOCKERHUB_USERNAME` if it is not `mukezhz`).
+
 ## Testing
 
 ```bash

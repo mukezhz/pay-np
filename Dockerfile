@@ -1,7 +1,4 @@
 # syntax=docker/dockerfile:1
-
-# Builds the example checkout server (examples/checkout). Templates and static
-# assets are embedded, so the runtime image holds a single static binary.
 FROM --platform=$BUILDPLATFORM golang:1.24.10-alpine AS build
 ARG TARGETOS TARGETARCH
 WORKDIR /src
