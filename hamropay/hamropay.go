@@ -31,19 +31,6 @@ const (
 	sessionTTL             = 10 * time.Minute
 )
 
-type Config struct {
-	MerchantID    string
-	ClientID      string
-	ClientAPIKey  string
-	ClientSecret  string
-	WebhookSecret string
-	Environment   paynp.Environment
-	APIBaseURL    string
-	GatewayURL    string
-	HTTPClient    *http.Client
-	Now           func() time.Time
-}
-
 type Client struct {
 	cfg  Config
 	http *http.Client
@@ -71,24 +58,6 @@ func New(cfg Config) (*Client, error) {
 }
 
 func (c *Client) Name() paynp.ProviderName { return paynp.HamroPay }
-
-type product struct {
-	Name        string  `json:"name"`
-	Description string  `json:"description,omitempty"`
-	Price       float64 `json:"price"`
-	Quantity    int     `json:"quantity"`
-}
-
-type sessionRequest struct {
-	MerchantTxnID     string    `json:"merchantTxnId"`
-	MerchantID        string    `json:"merchantId"`
-	TransactionAmount string    `json:"transactionAmount"`
-	FailedURL         string    `json:"failedRedirectionUrl"`
-	SuccessURL        string    `json:"successRedirectionUrl"`
-	ProductList       []product `json:"productList"`
-	Remarks           string    `json:"remarks,omitempty"`
-	PhoneNumber       string    `json:"phone_number,omitempty"`
-}
 
 func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
@@ -152,14 +121,6 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 	return &paynp.Callback{TxnID: id, Status: paynp.StatusPending, Values: query}, nil
 }
 
-type transaction struct {
-	MerchantTransactionID string      `json:"merchantTransactionId"`
-	MerchantTxnID         string      `json:"merchantTxnId"` // UAT has been seen using this name
-	Status                string      `json:"status"`
-	Amount                json.Number `json:"amount"`
-	Message               string      `json:"message"`
-}
-
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {
 	if req.TxnID == "" || req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: hamropay lookup needs TxnID and Amount", paynp.ErrInvalidRequest)
@@ -183,14 +144,6 @@ func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Tr
 		}
 	}
 	return paynp.MatchAmount(tx, req.Amount)
-}
-
-type webhook struct {
-	MerchantTxnID string            `json:"merchantTxnId"`
-	MerchantID    string            `json:"merchantId"`
-	Amount        json.Number       `json:"amount"`
-	Status        string            `json:"status"`
-	Metadata      map[string]string `json:"metadata"`
 }
 
 // ParseWebhook verifies the Signature header with WebhookSecret; still match Amount.

@@ -2,7 +2,6 @@ package esewa
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,14 +18,6 @@ const (
 var mobileVerifyURLs = map[paynp.Environment]string{
 	paynp.Sandbox:    "https://rc.esewa.com.np/mobile/transaction",
 	paynp.Production: "https://esewa.com.np/mobile/transaction",
-}
-
-type MobileConfig struct {
-	ClientID     string
-	ClientSecret string
-	Environment  paynp.Environment
-	VerifyURL    string
-	HTTPClient   *http.Client
 }
 
 // MobileClient verifies payments made in-app with eSewa's Android/iOS/Flutter SDK.
@@ -46,22 +37,6 @@ func NewMobile(cfg MobileConfig) (*MobileClient, error) {
 		}
 	}
 	return &MobileClient{cfg: cfg, http: httpx.DefaultClient(cfg.HTTPClient)}, nil
-}
-
-type MobileVerifyRequest struct {
-	// ProductID must be unique per order; it binds the payment to the order.
-	ProductID string
-	RefID     string
-	Amount    paynp.Paisa
-}
-
-type mobileTxn struct {
-	ProductID          string      `json:"productId"`
-	TotalAmount        json.Number `json:"totalAmount"`
-	TransactionDetails struct {
-		ReferenceID string `json:"referenceId"`
-		Status      string `json:"status"`
-	} `json:"transactionDetails"`
 }
 
 func (c *MobileClient) Verify(ctx context.Context, req MobileVerifyRequest) (*paynp.Transaction, error) {

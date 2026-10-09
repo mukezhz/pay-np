@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	paynp "github.com/mukezhz/pay-np"
 	"github.com/mukezhz/pay-np/internal/httpx"
@@ -23,14 +22,6 @@ var baseURLs = map[paynp.Environment]string{
 const MinAmount paynp.Paisa = 1000
 
 const SandboxSecretKey = "live_secret_key_68791341fdd94846a146f0457ff7b455"
-
-type Config struct {
-	SecretKey   string
-	WebsiteURL  string
-	Environment paynp.Environment
-	BaseURL     string
-	HTTPClient  *http.Client
-}
 
 type Client struct {
 	cfg  Config
@@ -54,27 +45,6 @@ func New(cfg Config) (*Client, error) {
 }
 
 func (c *Client) Name() paynp.ProviderName { return paynp.Khalti }
-
-type customerInfo struct {
-	Name  string `json:"name,omitempty"`
-	Email string `json:"email,omitempty"`
-	Phone string `json:"phone,omitempty"`
-}
-
-type initiateRequest struct {
-	ReturnURL         string        `json:"return_url"`
-	WebsiteURL        string        `json:"website_url"`
-	Amount            int64         `json:"amount"`
-	PurchaseOrderID   string        `json:"purchase_order_id"`
-	PurchaseOrderName string        `json:"purchase_order_name"`
-	CustomerInfo      *customerInfo `json:"customer_info,omitempty"`
-}
-
-type initiateResponse struct {
-	Pidx       string    `json:"pidx"`
-	PaymentURL string    `json:"payment_url"`
-	ExpiresAt  time.Time `json:"expires_at"`
-}
 
 func (c *Client) Initiate(ctx context.Context, req paynp.InitiateRequest) (*paynp.Checkout, error) {
 	if err := req.Validate(); err != nil {
@@ -143,13 +113,6 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 		Amount:      paynp.Paisa(amount),
 		Values:      query,
 	}, nil
-}
-
-type lookupResponse struct {
-	Pidx          string  `json:"pidx"`
-	TotalAmount   int64   `json:"total_amount"`
-	Status        string  `json:"status"`
-	TransactionID *string `json:"transaction_id"`
 }
 
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {

@@ -24,15 +24,6 @@ var hosts = map[paynp.Environment]string{
 
 var nepalTime = time.FixedZone("NPT", 5*3600+45*60)
 
-type Config struct {
-	MerchantCode string // PID
-	SecretKey    string
-	Environment  paynp.Environment
-	Host         string
-	HTTPClient   *http.Client
-	Now          func() time.Time
-}
-
 type Client struct {
 	cfg  Config
 	http *http.Client
@@ -110,13 +101,6 @@ func (c *Client) ParseCallback(q url.Values) (*paynp.Callback, error) {
 		return nil, fmt.Errorf("%w: %v", paynp.ErrInvalidCallback, err)
 	}
 	return &paynp.Callback{TxnID: q.Get("PRN"), ProviderRef: q.Get("UID"), Status: status, Amount: amount, Values: q}, nil
-}
-
-type verifyResponse struct {
-	Success      bool   `xml:"success"`
-	ResponseCode string `xml:"response_code"`
-	Message      string `xml:"message"`
-	TxnAmount    string `xml:"txnAmount"`
 }
 
 // Lookup needs req.Callback: verification is keyed by the UID from the redirect.

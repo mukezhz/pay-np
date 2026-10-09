@@ -37,15 +37,6 @@ var endpoints = map[paynp.Environment]struct{ form, status string }{
 
 const signedFields = "total_amount,transaction_uuid,product_code"
 
-type Config struct {
-	ProductCode string
-	SecretKey   string
-	Environment paynp.Environment
-	FormURL     string
-	StatusURL   string
-	HTTPClient  *http.Client
-}
-
 type Client struct {
 	cfg  Config
 	http *http.Client
@@ -137,15 +128,6 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 		Amount:      amount,
 		Values:      query,
 	}, nil
-}
-
-// eSewa returns either snake_case (v2) or camelCase fields.
-type statusResponse struct {
-	TotalAmount    json.Number `json:"total_amount"`
-	TotalAmountOld json.Number `json:"totalAmount"`
-	Status         string      `json:"status"`
-	RefID          *string     `json:"ref_id"`
-	RefIDOld       *string     `json:"refId"`
 }
 
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {

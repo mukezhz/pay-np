@@ -30,20 +30,6 @@ var hosts = map[paynp.Environment]string{
 // nepalTime avoids depending on the host's tzdata; Nepal has no DST.
 var nepalTime = time.FixedZone("NPT", 5*3600+45*60)
 
-type Config struct {
-	MerchantID string
-	AppID      string
-	AppName    string
-	// Username defaults to AppID.
-	Username    string
-	Password    string
-	PrivateKey  *rsa.PrivateKey
-	Environment paynp.Environment
-	Host        string
-	HTTPClient  *http.Client
-	Now         func() time.Time
-}
-
 type Client struct {
 	cfg        Config
 	merchantID int64
@@ -139,22 +125,6 @@ func (c *Client) ParseCallback(query url.Values) (*paynp.Callback, error) {
 		return nil, fmt.Errorf("%w: connectips TXNID missing", paynp.ErrInvalidCallback)
 	}
 	return &paynp.Callback{TxnID: id, Status: paynp.StatusPending, Values: query}, nil
-}
-
-type txnRequest struct {
-	MerchantID  int64  `json:"merchantId"`
-	AppID       string `json:"appId"`
-	ReferenceID string `json:"referenceId"`
-	TxnAmt      int64  `json:"txnAmt"`
-	Token       string `json:"token"`
-}
-
-type txnDetail struct {
-	Status      string  `json:"status"`
-	StatusDesc  string  `json:"statusDesc"`
-	ReferenceID string  `json:"referenceId"`
-	TxnAmt      float64 `json:"txnAmt"`
-	TxnID       int64   `json:"txnId"`
 }
 
 func (c *Client) Lookup(ctx context.Context, req paynp.LookupRequest) (*paynp.Transaction, error) {
