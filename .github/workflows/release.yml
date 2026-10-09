@@ -2,7 +2,15 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*", "[0-9]*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release (e.g. 0.1.0)
+        required: true
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -13,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TAG }}
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
@@ -23,7 +32,7 @@ jobs:
           mkdir -p dist
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
             os=${target%/*}; arch=${target#*/}; ext=; [ "$os" = windows ] && ext=.exe
-            name=pay-np-checkout_${GITHUB_REF_NAME}_${os}_${arch}
+            name=pay-np-checkout_${TAG}_${os}_${arch}
             CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags="-s -w" -o "dist/$name/pay-np-checkout$ext" ./examples/checkout
             if [ "$os" = windows ]; then (cd dist && zip -qr "$name.zip" "$name"); else tar -C dist -czf "dist/$name.tar.gz" "$name"; fi
             rm -rf "dist/$name"
@@ -34,5 +43,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           flags=--generate-notes
-          case "$GITHUB_REF_NAME" in *-*) flags="$flags --prerelease";; esac
-          gh release create "$GITHUB_REF_NAME" $flags --verify-tag dist/*
+          case "$TAG" in *-*) flags="$flags --prerelease";; esac
+          gh release create "$TAG" $flags --verify-tag dist/*
