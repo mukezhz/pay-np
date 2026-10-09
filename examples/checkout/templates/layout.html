@@ -1,0 +1,232 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.}} · pay-np test shop</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --card: #fff;
+        --text: #16181d;
+        --muted: #667085;
+        --line: #e4e7ec;
+        --accent: #4f46e5;
+        --ok: #067647;
+        --ok-bg: #ecfdf3;
+        --bad: #b42318;
+        --bad-bg: #fef3f2;
+        --wait: #b54708;
+        --wait-bg: #fffaeb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --card: #171a21;
+          --text: #e6e8ec;
+          --muted: #98a2b3;
+          --line: #2a2f3a;
+          --accent: #818cf8;
+          --ok: #75e0a7;
+          --ok-bg: #053321;
+          --bad: #fda29b;
+          --bad-bg: #55160c;
+          --wait: #fec84b;
+          --wait-bg: #4e1d09;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 24px 16px 64px;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      header a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 20px;
+      }
+      .tag {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--wait-bg);
+        color: var(--wait);
+        font-weight: 600;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 14px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      input {
+        width: 100%;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+      }
+      input:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .providers {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+      button {
+        font: inherit;
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--text);
+        cursor: pointer;
+      }
+      button.pay:hover:not(:disabled) {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 10px 0 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      a {
+        color: var(--accent);
+      }
+      .status {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--wait-bg);
+        color: var(--wait);
+      }
+      .status.SUCCESS {
+        background: var(--ok-bg);
+        color: var(--ok);
+      }
+      .status.FAILED,
+      .status.CANCELED,
+      .status.EXPIRED {
+        background: var(--bad-bg);
+        color: var(--bad);
+      }
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 6px 16px;
+        margin: 0;
+      }
+      dt {
+        color: var(--muted);
+      }
+      dd {
+        margin: 0;
+        word-break: break-all;
+      }
+      pre {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        overflow: auto;
+        font-size: 12px;
+        margin: 6px 0 0;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .event {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .event:last-child {
+        border: 0;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><a href="/">pay-np test shop</a></header>
+      {{end}} {{define "foot"}}
+    </main>
+  </body>
+</html>
+{{end}}

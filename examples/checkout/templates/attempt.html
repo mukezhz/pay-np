@@ -1,0 +1,41 @@
+{{define "attempt.html"}}{{template "head" .ID}}
+<section class="card">
+  <h2>{{.ID}} <span class="status {{.Status}}">{{.Status}}</span></h2>
+  <dl>
+    <dt>Provider</dt>
+    <dd>{{.Provider}}</dd>
+    <dt>Amount</dt>
+    <dd>Rs {{rupees .Amount}}</dd>
+    <dt>Description</dt>
+    <dd>{{or .Desc "—"}}</dd>
+    <dt>Provider ref</dt>
+    <dd>{{or .Ref "—"}}</dd>
+    <dt>Created</dt>
+    <dd>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</dd>
+  </dl>
+  <form method="post" action="/attempts/{{.ID}}/lookup" style="margin-top: 16px">
+    <button class="primary" type="submit">
+      {{if final .Status}}Look up again{{else}}Check status (Lookup){{end}}
+    </button>
+    <a href="/" style="margin-left: 12px">New payment</a>
+  </form>
+  <p class="hint">
+    Only Lookup is authoritative. The callback status is a hint; unsigned callbacks never claim
+    SUCCESS.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Timeline</h2>
+  {{range .Events}}
+  <div class="event">
+    <strong>{{.Kind}}</strong>
+    {{if .Status}}<span class="status {{.Status}}">{{.Status}}</span>{{end}}
+    <span class="muted">{{.At.Format "15:04:05"}}</span>
+    {{if .Detail}}
+    <pre>{{.Detail}}</pre>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+{{template "foot"}}{{end}}

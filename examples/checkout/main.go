@@ -1,0 +1,329 @@
+// Command checkout is a local test shop for every pay-np provider.
+//
+//	go run ./examples/checkout    # then open http://localhost:8080
+//
+// eSewa works out of the box with its public sandbox merchant. Other providers
+// appear once their env vars are set (see examples/checkout/README.md).
+package main
+
+import (
+	"context"
+	"crypto/rand"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	paynp "github.com/mukezhz/pay-np"
+	"github.com/mukezhz/pay-np/connectips"
+	"github.com/mukezhz/pay-np/esewa"
+	"github.com/mukezhz/pay-np/fonepay"
+	"github.com/mukezhz/pay-np/imepay"
+	"github.com/mukezhz/pay-np/khalti"
+)
+
+//go:embed templates/*.html
+var templateFS embed.FS
+
+var pages = template.Must(template.New("").Funcs(template.FuncMap{
+	"rupees": func(p paynp.Paisa) string { return p.Rupees() },
+	"final":  func(s paynp.Status) bool { return s.Final() },
+}).ParseFS(templateFS, "templates/*.html"))
+
+type attempt struct {
+	ID        string
+	Provider  paynp.ProviderName
+	Amount    paynp.Paisa
+	Desc      string
+	Ref       string
+	Status    paynp.Status
+	CreatedAt time.Time
+	Callback  *paynp.Callback
+	Events    []event
+}
+
+type event struct {
+	At     time.Time
+	Kind   string
+	Status paynp.Status
+	Detail string
+}
+
+type shop struct {
+	baseURL   string
+	env       string
+	providers map[paynp.ProviderName]paynp.Provider
+
+	mu       sync.Mutex
+	attempts map[string]*attempt
+}
+
+func main() {
+	addr := envOr("ADDR", ":8080")
+	s := &shop{
+		baseURL:   strings.TrimRight(envOr("BASE_URL", "http://localhost"+addr), "/"),
+		env:       envOr("PAYNP_ENV", "sandbox"),
+		providers: map[paynp.ProviderName]paynp.Provider{},
+		attempts:  map[string]*attempt{},
+	}
+	environment := paynp.Sandbox
+	if s.env == "production" {
+		environment = paynp.Production
+	}
+	if err := s.configure(environment); err != nil {
+		log.Fatal(err)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", s.index)
+	mux.HandleFunc("POST /pay", s.pay)
+	mux.HandleFunc("/return/{provider}/{txn}", s.handleReturn)
+	mux.HandleFunc("/return/{provider}", s.handleReturn) // ConnectIPS: URL registered with NCHL, TXNID in query
+	mux.HandleFunc("GET /attempts/{txn}", s.show)
+	mux.HandleFunc("POST /attempts/{txn}/lookup", s.recheck)
+
+	names := make([]string, 0, len(s.providers))
+	for n := range s.providers {
+		names = append(names, string(n))
+	}
+	slices.Sort(names)
+	log.Printf("pay-np test shop on %s (%s) — providers: %s", s.baseURL, s.env, strings.Join(names, ", "))
+	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+func (s *shop) configure(env paynp.Environment) error {
+	add := func(p paynp.Provider, err error) error {
+		if err != nil {
+			return err
+		}
+		s.providers[p.Name()] = p
+		return nil
+	}
+	esewaCode, esewaSecret := os.Getenv("ESEWA_PRODUCT_CODE"), os.Getenv("ESEWA_SECRET_KEY")
+	if esewaCode == "" && env == paynp.Sandbox {
+		esewaCode, esewaSecret = esewa.SandboxProductCode, esewa.SandboxSecretKey
+	}
+	if esewaCode != "" {
+		if err := add(esewa.New(esewa.Config{ProductCode: esewaCode, SecretKey: esewaSecret, Environment: env,
+			StatusURL: os.Getenv("ESEWA_STATUS_URL")})); err != nil {
+			return err
+		}
+	}
+	if key := os.Getenv("KHALTI_SECRET_KEY"); key != "" {
+		if err := add(khalti.New(khalti.Config{SecretKey: key, WebsiteURL: envOr("KHALTI_WEBSITE_URL", s.baseURL), Environment: env})); err != nil {
+			return err
+		}
+	}
+	if mid := os.Getenv("CONNECTIPS_MERCHANT_ID"); mid != "" {
+		pfx, err := os.ReadFile(os.Getenv("CONNECTIPS_PFX_PATH"))
+		if err != nil {
+			return fmt.Errorf("CONNECTIPS_PFX_PATH: %w", err)
+		}
+		key, err := connectips.ParsePFX(pfx, os.Getenv("CONNECTIPS_PFX_PASSWORD"))
+		if err != nil {
+			return err
+		}
+		if err := add(connectips.New(connectips.Config{
+			MerchantID: mid, AppID: os.Getenv("CONNECTIPS_APP_ID"), AppName: os.Getenv("CONNECTIPS_APP_NAME"),
+			Username: os.Getenv("CONNECTIPS_USERNAME"), Password: os.Getenv("CONNECTIPS_PASSWORD"),
+			PrivateKey: key, Environment: env, Host: os.Getenv("CONNECTIPS_HOST"),
+		})); err != nil {
+			return err
+		}
+	}
+	if code := os.Getenv("FONEPAY_MERCHANT_CODE"); code != "" {
+		if err := add(fonepay.New(fonepay.Config{MerchantCode: code, SecretKey: os.Getenv("FONEPAY_SECRET_KEY"), Environment: env})); err != nil {
+			return err
+		}
+	}
+	if code := os.Getenv("IMEPAY_MERCHANT_CODE"); code != "" {
+		if err := add(imepay.New(imepay.Config{MerchantCode: code, Module: os.Getenv("IMEPAY_MODULE"),
+			APIUser: os.Getenv("IMEPAY_API_USER"), APIPassword: os.Getenv("IMEPAY_API_PASSWORD"), Environment: env})); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *shop) index(w http.ResponseWriter, _ *http.Request) {
+	s.mu.Lock()
+	list := make([]*attempt, 0, len(s.attempts))
+	for _, a := range s.attempts {
+		list = append(list, a)
+	}
+	s.mu.Unlock()
+	slices.SortFunc(list, func(a, b *attempt) int { return b.CreatedAt.Compare(a.CreatedAt) })
+
+	all := []paynp.ProviderName{paynp.Esewa, paynp.Khalti, paynp.ConnectIPS, paynp.Fonepay, paynp.IMEPay}
+	type option struct {
+		Name    paynp.ProviderName
+		Enabled bool
+	}
+	opts := make([]option, len(all))
+	for i, n := range all {
+		_, ok := s.providers[n]
+		opts[i] = option{n, ok}
+	}
+	render(w, "index.html", map[string]any{"Env": s.env, "Providers": opts, "Attempts": list})
+}
+
+func (s *shop) pay(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.providers[paynp.ProviderName(r.FormValue("provider"))]
+	if !ok {
+		http.Error(w, "provider not configured", http.StatusBadRequest)
+		return
+	}
+	amount, err := paynp.ParseRupees(r.FormValue("amount"))
+	if err != nil || amount <= 0 {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
+		return
+	}
+	a := &attempt{ID: newTxnID(), Provider: p.Name(), Amount: amount, Desc: strings.TrimSpace(r.FormValue("description")), CreatedAt: time.Now()}
+	ret := fmt.Sprintf("%s/return/%s/%s", s.baseURL, p.Name(), a.ID)
+	co, err := p.Initiate(r.Context(), paynp.InitiateRequest{
+		TxnID: a.ID, Amount: amount, Description: a.Desc,
+		SuccessURL: ret, FailureURL: ret + "?failed=1",
+		Customer: paynp.Customer{Name: r.FormValue("name"), Email: r.FormValue("email"), Phone: r.FormValue("phone")},
+	})
+	if err != nil {
+		a.Status = paynp.StatusFailed
+		a.log("initiate", "", err.Error())
+		s.save(a) // not yet shared, so no lock needed above
+		http.Redirect(w, r, "/attempts/"+a.ID, http.StatusSeeOther)
+		return
+	}
+	a.Ref, a.Status = co.ProviderRef, paynp.StatusPending
+	a.log("initiate", paynp.StatusPending, fmt.Sprintf("%s %s ref=%q", co.Method, co.URL, co.ProviderRef))
+	s.save(a)
+	if err := co.Write(w, r); err != nil {
+		log.Print(err)
+	}
+}
+
+func (s *shop) handleReturn(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.providers[paynp.ProviderName(r.PathValue("provider"))]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	_ = r.ParseForm() // some providers POST back
+	cb, cbErr := p.ParseCallback(r.Form)
+	id := r.PathValue("txn")
+	if id == "" && cb != nil {
+		id = cb.TxnID
+	}
+	a := s.get(id)
+	if a == nil {
+		http.Error(w, "unknown transaction "+strconv.Quote(id), http.StatusNotFound)
+		return
+	}
+	s.mu.Lock()
+	switch {
+	case cbErr != nil && r.Form.Get("failed") == "1":
+		a.log("callback", "", "returned to failure URL (provider sent no signed data)")
+	case cbErr != nil:
+		a.log("callback", "", cbErr.Error())
+	default:
+		a.Callback = cb
+		a.log("callback", cb.Status, "hint only: "+r.Form.Encode())
+	}
+	s.mu.Unlock()
+	s.lookup(r.Context(), a)
+	http.Redirect(w, r, "/attempts/"+a.ID, http.StatusSeeOther)
+}
+
+func (s *shop) recheck(w http.ResponseWriter, r *http.Request) {
+	if a := s.get(r.PathValue("txn")); a != nil {
+		s.lookup(r.Context(), a)
+	}
+	http.Redirect(w, r, "/attempts/"+r.PathValue("txn"), http.StatusSeeOther)
+}
+
+func (s *shop) lookup(ctx context.Context, a *attempt) {
+	s.mu.Lock()
+	req := paynp.LookupRequest{TxnID: a.ID, Amount: a.Amount, ProviderRef: a.Ref, Callback: a.Callback}
+	s.mu.Unlock()
+	tx, err := s.providers[a.Provider].Lookup(ctx, req)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch {
+	case errors.Is(err, paynp.ErrAmountMismatch):
+		a.Status = paynp.StatusFailed
+		a.log("lookup", a.Status, err.Error())
+	case err != nil:
+		a.log("lookup", "", err.Error())
+	default:
+		a.Status = tx.Status
+		if tx.ProviderRef != "" && a.Ref == "" {
+			a.Ref = tx.ProviderRef
+		}
+		a.log("lookup", tx.Status, prettyJSON(tx.Raw))
+	}
+}
+
+func (s *shop) show(w http.ResponseWriter, r *http.Request) {
+	a := s.get(r.PathValue("txn"))
+	if a == nil {
+		http.NotFound(w, r)
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	render(w, "attempt.html", a)
+}
+
+func (s *shop) save(a *attempt) {
+	s.mu.Lock()
+	s.attempts[a.ID] = a
+	s.mu.Unlock()
+}
+
+func (s *shop) get(id string) *attempt {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.attempts[id]
+}
+
+func (a *attempt) log(kind string, st paynp.Status, detail string) {
+	a.Events = append(a.Events, event{At: time.Now(), Kind: kind, Status: st, Detail: detail})
+}
+
+func render(w http.ResponseWriter, name string, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := pages.ExecuteTemplate(w, name, data); err != nil {
+		log.Print(err)
+	}
+}
+
+// newTxnID fits every provider: ≤ 20 chars, [a-z0-9-].
+func newTxnID() string {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	return "np-" + hex.EncodeToString(b)
+}
+
+func prettyJSON(raw []byte) string {
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return string(raw)
+	}
+	b, _ := json.MarshalIndent(v, "", "  ")
+	return string(b)
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}

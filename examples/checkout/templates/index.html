@@ -1,0 +1,78 @@
+{{define "index.html"}}{{template "head" "Checkout"}}
+<section class="card">
+  <h2>New payment <span class="tag">{{.Env}}</span></h2>
+  <form method="post" action="/pay">
+    <div class="grid">
+      <div>
+        <label for="amount">Amount (NPR)</label
+        ><input id="amount" name="amount" value="100" inputmode="decimal" required />
+      </div>
+      <div>
+        <label for="description">Description</label
+        ><input id="description" name="description" value="pay-np test order" maxlength="50" />
+      </div>
+      <div>
+        <label for="name">Customer name</label
+        ><input id="name" name="name" placeholder="optional" />
+      </div>
+      <div>
+        <label for="phone">Customer phone</label
+        ><input id="phone" name="phone" placeholder="optional" inputmode="tel" />
+      </div>
+    </div>
+    <div class="providers">
+      {{range .Providers}}
+      <button
+        class="pay"
+        type="submit"
+        name="provider"
+        value="{{.Name}}"
+        {{if
+        not
+        .Enabled}}disabled
+        title="set its env vars to enable"
+        {{end}}
+      >
+        Pay with {{.Name}}
+      </button>
+      {{end}}
+    </div>
+  </form>
+  <p class="hint">
+    eSewa sandbox login: 9806800001 / Nepal@123, token 123456 · Khalti sandbox: 9800000000, MPIN
+    1111, OTP 987654 · Khalti minimum Rs 10.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Attempts</h2>
+  {{if .Attempts}}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Txn</th>
+          <th>Provider</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Attempts}}
+        <tr>
+          <td><a href="/attempts/{{.ID}}">{{.ID}}</a></td>
+          <td>{{.Provider}}</td>
+          <td>Rs {{rupees .Amount}}</td>
+          <td><span class="status {{.Status}}">{{.Status}}</span></td>
+          <td class="muted">{{.CreatedAt.Format "15:04:05"}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="muted">None yet. Attempts live in memory until the server stops.</p>
+  {{end}}
+</section>
+{{template "foot"}}{{end}}
