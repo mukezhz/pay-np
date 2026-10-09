@@ -36,6 +36,7 @@ const (
 	ConnectIPS ProviderName = "connectips"
 	Fonepay    ProviderName = "fonepay"
 	IMEPay     ProviderName = "imepay"
+	HamroPay   ProviderName = "hamropay"
 )
 
 type Environment int

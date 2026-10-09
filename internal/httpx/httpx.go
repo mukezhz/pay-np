@@ -28,6 +28,7 @@ type Request struct {
 	JSON    any
 	Form    []byte
 	Allow4x bool // return 4xx bodies to the caller instead of an APIError
+	Close   bool // send Connection: close (servers that drop keep-alive sockets)
 }
 
 // Do sends req and returns the body; non-2xx (and 4xx unless Allow4x) becomes *paynp.APIError.
@@ -54,6 +55,7 @@ func Do(ctx context.Context, c *http.Client, p paynp.ProviderName, req Request) 
 		return 0, nil, err
 	}
 	hr.Header = header
+	hr.Close = req.Close
 	hr.Header.Set("Accept", "application/json")
 
 	resp, err := c.Do(hr)
